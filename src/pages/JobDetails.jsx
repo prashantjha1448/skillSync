@@ -46,6 +46,7 @@ const JobDetails = () => {
 
   const job = jobData?.job ?? jobData;
   const proposals = jobData?.proposals ?? job?.proposals ?? [];
+  const myProposal = jobData?.myProposal ?? job?.myProposal ?? null;
   const isJobOwner = job?.client === user?.id;
   const isFreelancer = role?.toUpperCase() === 'FREELANCER';
   const isClient = role?.toUpperCase() === 'CLIENT';
@@ -263,10 +264,42 @@ const JobDetails = () => {
                 <h3 className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">{formatBudget(job)}</h3>
               </div>
 
-              {/* Freelancer: Apply */}
+              {/* Freelancer: Apply or View Submitted Proposal */}
               {(!isJobOwner && (isFreelancer || !isAuthenticated)) && (
                 <>
-                  {!showProposal ? (
+                  {myProposal ? (
+                    <div className="space-y-4 text-left">
+                      <div className="bg-background rounded-2xl p-5 border border-border">
+                        <div className="flex items-center justify-between mb-3 border-b border-border/60 pb-2">
+                          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Your Proposal</span>
+                          <span className={`text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase border ${
+                            myProposal.status === 'accepted' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' :
+                            myProposal.status === 'rejected' ? 'bg-red-500/10 text-red-500 border-red-500/20' :
+                            'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20'
+                          }`}>
+                            {myProposal.status}
+                          </span>
+                        </div>
+                        
+                        <div className="space-y-2 text-xs">
+                          <p className="text-foreground/80 leading-relaxed italic">"{myProposal.coverLetter}"</p>
+                          <div className="flex justify-between items-center pt-2 text-[10px] font-bold text-muted-foreground">
+                            <span>Bid: <strong className="text-emerald-600 dark:text-emerald-400 text-xs">₹{myProposal.bidAmount?.toLocaleString('en-IN')}</strong></span>
+                            <span>Delivery: <strong>{myProposal.estimatedDays} days</strong></span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {myProposal.status === 'accepted' && (
+                        <button
+                          onClick={() => navigate(`/shared/messages?jobId=${job._id}&otherUserId=${job.client}`)}
+                          className="w-full flex items-center justify-center gap-2 py-4 px-6 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded-xl transition-all shadow-lg shadow-primary/20 cursor-pointer"
+                        >
+                          <MessageSquare className="w-4 h-4" /> Chat with Client
+                        </button>
+                      )}
+                    </div>
+                  ) : !showProposal ? (
                     <button onClick={() => isAuthenticated ? setShowProposal(true) : navigate('/auth')}
                       disabled={job.status !== 'open'}
                       className="w-full bg-primary hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed text-primary-foreground py-4 rounded-xl font-bold transition-all text-base mb-4 cursor-pointer shadow-lg shadow-primary/20">

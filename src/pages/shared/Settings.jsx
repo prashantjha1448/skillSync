@@ -135,7 +135,7 @@ const Settings = () => {
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Account Settings</h1>
           <p className="text-muted-foreground mt-2 text-sm max-w-2xl">Manage your account settings, verify your identity, and set up your security preferences.</p>
         </div>
-        <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} 
+        <button onClick={() => navigate('/')} 
           className="self-start sm:self-center flex items-center gap-2 bg-accent/40 border border-border hover:bg-accent px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
           <Home className="w-4 h-4 text-primary" />
           <span>Home</span>

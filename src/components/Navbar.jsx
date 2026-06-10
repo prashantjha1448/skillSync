@@ -156,7 +156,7 @@ const Navbar = () => {
         {/* MIDDLE: Nav Links */}
         <div className="flex items-center gap-1 bg-accent/20 p-1 border border-border rounded-xl">
           {user && !isDashboard && (
-            <NavLink to={user.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard'} className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
+            <NavLink to="/" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
               <Home size={16} /><span>Home</span>
             </NavLink>
           )}

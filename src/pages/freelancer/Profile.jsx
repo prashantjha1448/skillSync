@@ -135,7 +135,12 @@ const FreelancerProfile = () => {
                 )}
                 <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 mt-3 text-sm text-muted-foreground">
                   {displayProfile?.location && (
-                    <span className="flex items-center gap-1"><MapPin size={16} className="text-primary" /> {displayProfile.location}</span>
+                    <span className="flex items-center gap-1">
+                      <MapPin size={16} className="text-primary" />
+                      {typeof displayProfile.location === 'object'
+                        ? (displayProfile.location.address || displayProfile.location.city || 'Local')
+                        : displayProfile.location}
+                    </span>
                   )}
                   {displayProfile?.earnings?.rating != null && (
                     <span className="flex items-center gap-1 text-amber-500">

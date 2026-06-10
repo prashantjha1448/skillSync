@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Search, Loader2, Briefcase, MapPin, ArrowRight, X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
 import debounce from 'lodash/debounce';
 import api from '../services/api';
@@ -37,6 +38,9 @@ const SearchPage = () => {
   const [searchParams] = useSearchParams();
   const initialKeyword = searchParams.get('keyword') || '';
 
+  const { role } = useSelector((s) => s.auth);
+  const isClient = role === 'CLIENT';
+
   const [query, setQuery] = useState(initialKeyword);
   const [debouncedQuery, setDebouncedQuery] = useState(initialKeyword);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -67,7 +71,12 @@ const SearchPage = () => {
 
   // Full results query — fires after user picks suggestion or presses enter
   const [submittedQuery, setSubmittedQuery] = useState(initialKeyword);
-  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'freelancers'
+  const [activeTab, setActiveTab] = useState(isClient ? 'freelancers' : 'jobs'); // Default based on role
+
+  // Sync activeTab if role loads asynchronously
+  useEffect(() => {
+    setActiveTab(isClient ? 'freelancers' : 'jobs');
+  }, [isClient]);
 
   const { data: searchPayload = { jobs: [], freelancers: [] }, isLoading: resultsLoading, isFetching: resultsFetching } = useQuery({
     queryKey: ['search-results', submittedQuery],
@@ -79,11 +88,14 @@ const SearchPage = () => {
           freelancers: res.data?.freelancers ?? []
         };
       } else {
-        const res = await api.get('/jobs', { params: { limit: 30, status: 'open' } });
+        const [res, freeRes] = await Promise.all([
+          api.get('/jobs', { params: { limit: 30, status: 'open' } }),
+          api.get('/jobs/search', { params: { limit: 30 } })
+        ]);
         const jobs = Array.isArray(res.data) ? res.data : (res.data?.jobs ?? res.data?.data ?? []);
         return {
           jobs,
-          freelancers: []
+          freelancers: freeRes.data?.freelancers ?? []
         };
       }
     },
@@ -97,14 +109,14 @@ const SearchPage = () => {
     e?.preventDefault();
     setShowSuggestions(false);
     setSubmittedQuery(query.trim());
-    setActiveTab('jobs');
+    setActiveTab(isClient ? 'freelancers' : 'jobs');
   };
 
   const handleSuggestionClick = (job) => {
     setQuery(job.title);
     setSubmittedQuery(job.title);
     setShowSuggestions(false);
-    setActiveTab('jobs');
+    setActiveTab(isClient ? 'freelancers' : 'jobs');
   };
 
   const handleClear = () => {

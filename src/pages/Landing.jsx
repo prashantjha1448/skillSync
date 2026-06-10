@@ -15,8 +15,13 @@ const Landing = () => {
     staleTime: 60_000,
   });
 
+  const { data: statsData, isLoading: statsLoading } = useQuery({
+    queryKey: ['landing-stats'],
+    queryFn: () => api.get('/jobs/stats').then((r) => r.data?.data ?? r.data ?? {}),
+    staleTime: 30_000,
+  });
+
   const featuredJobs = Array.isArray(jobsData) ? jobsData.slice(0, 6) : (jobsData?.jobs ?? []).slice(0, 6);
-  const totalJobs = jobsData?.total ?? featuredJobs.length;
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -85,20 +90,26 @@ const Landing = () => {
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mt-16 pt-10 border-t border-border">
           <div>
             <h3 className="text-4xl font-extrabold text-foreground">
-              {jobsLoading ? <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /> : `${totalJobs > 0 ? totalJobs.toLocaleString() : '0'}+`}
+              {statsLoading ? <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /> : `${statsData?.activeJobs ?? 0}`}
             </h3>
             <p className="text-muted-foreground mt-1">Live Jobs</p>
           </div>
           <div>
-            <h3 className="text-4xl font-extrabold text-foreground">10K+</h3>
+            <h3 className="text-4xl font-extrabold text-foreground">
+              {statsLoading ? <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /> : `${statsData?.freelancers ?? 0}`}
+            </h3>
             <p className="text-muted-foreground mt-1">Freelancers</p>
           </div>
           <div>
-            <h3 className="text-4xl font-extrabold text-foreground">&lt; 2 min</h3>
-            <p className="text-muted-foreground mt-1">Avg Response</p>
+            <h3 className="text-4xl font-extrabold text-foreground">
+              {statsLoading ? <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /> : `${statsData?.clients ?? 0}`}
+            </h3>
+            <p className="text-muted-foreground mt-1">Active Clients</p>
           </div>
           <div>
-            <h3 className="text-4xl font-extrabold text-foreground">₹50Cr+</h3>
+            <h3 className="text-4xl font-extrabold text-foreground">
+              {statsLoading ? <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto" /> : `₹${(statsData?.totalPaidOut ?? 0).toLocaleString('en-IN')}`}
+            </h3>
             <p className="text-muted-foreground mt-1">Total Paid Out</p>
           </div>
         </div>

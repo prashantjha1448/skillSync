@@ -1,14 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, Send, Phone, Video, MoreVertical, Image as ImageIcon, Paperclip, Loader2, Wifi, WifiOff, ArrowLeft, Home } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import api from '../../services/api';
 import { socketService } from '../../services/socket';
 
 const Messages = () => {
   const { user, token } = useSelector((s) => s.auth);
   const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [searchParams] = useSearchParams();
+  const selectJobId = searchParams.get('jobId');
+  const selectOtherUserId = searchParams.get('otherUserId');
 
   const [activeRoom, setActiveRoom] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -25,11 +30,45 @@ const Messages = () => {
     queryFn: () => api.get('/messages/conversations').then((r) => r.data?.conversations ?? r.data ?? []),
   });
 
+  // Automatically select room if query params match, or build a temp fallback
+  useEffect(() => {
+    if (selectJobId && selectOtherUserId) {
+      const match = conversations.find(
+        (c) => String(c.jobId) === String(selectJobId) && String(c.otherUserId) === String(selectOtherUserId)
+      );
+      if (match) {
+        setActiveRoom(match);
+      } else if (!convoLoading) {
+        // Fetch user and job info to build a dummy/temp room so we can initiate chat
+        Promise.all([
+          api.get(`/profile/user/${selectOtherUserId}`).catch(() => null),
+          api.get(`/jobs/${selectJobId}`).catch(() => null)
+        ]).then(([userRes, jobRes]) => {
+          const uData = userRes?.data?.data || userRes?.data;
+          const jData = jobRes?.data?.data || jobRes?.data;
+          if (uData) {
+            setActiveRoom({
+              jobId: selectJobId,
+              otherUserId: selectOtherUserId,
+              jobTitle: jData?.job?.title || jData?.title || 'Job Thread',
+              name: uData.name,
+              profilePic: uData.profilePic || uData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${uData.name}`,
+              lastMessage: '',
+              lastMessageTime: '',
+              unreadCount: 0,
+              isTemp: true
+            });
+          }
+        });
+      }
+    }
+  }, [conversations, convoLoading, selectJobId, selectOtherUserId]);
+
   // Load history when room changes
   useEffect(() => {
     if (!activeRoom) return;
     api.get(`/messages/${activeRoom.jobId}/${activeRoom.otherUserId}`)
-      .then((r) => setMessages(r.data?.messages ?? r.data ?? []))
+      .then((r) => setMessages(r.data?.data ?? []))
       .catch(() => setMessages([]));
   }, [activeRoom]);
 
@@ -39,13 +78,28 @@ const Messages = () => {
     const socket = socketService.connect(token);
     socket.on('connect', () => setConnected(true));
     socket.on('disconnect', () => setConnected(false));
-    socket.on('receive_message', (msg) => setMessages((prev) => [...prev, msg]));
-    socket.on('typing_status', ({ userId, isTyping: t }) => { if (userId !== user?._id) setIsTyping(t); });
+    socket.on('receive_message', (msg) => {
+      qc.invalidateQueries({ queryKey: ['conversations'] });
+      setMessages((prev) => {
+        if (prev.some((m) => m._id === msg._id)) return prev;
+        const myId = user?._id || user?.id;
+        if (myId && (msg.sender === myId || msg.senderId === myId)) {
+          const tempIdx = prev.findIndex((m) => String(m._id).startsWith('temp_') && m.text === msg.text);
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = msg;
+            return updated;
+          }
+        }
+        return [...prev, msg];
+      });
+    });
+    socket.on('typing_status', ({ userId, isTyping: t }) => { if (userId !== (user?._id || user?.id)) setIsTyping(t); });
     return () => {
       socket.off('receive_message');
       socket.off('typing_status');
     };
-  }, [token, user?._id]);
+  }, [token, user?._id, user?.id, qc]);
 
   // Join room
   useEffect(() => {
@@ -60,21 +114,24 @@ const Messages = () => {
     if (!inputText.trim() || !activeRoom) return;
     const socket = socketService.getSocket();
     const roomId = `${activeRoom.jobId}_${activeRoom.otherUserId}`;
-    const msg = { roomId, text: inputText.trim(), senderId: user?._id, senderName: user?.name, timestamp: new Date().toISOString(), _id: `temp_${Date.now()}`, isOwn: true };
+    const myId = user?._id || user?.id;
+    const msg = { roomId, text: inputText.trim(), senderId: myId, senderName: user?.name, timestamp: new Date().toISOString(), _id: `temp_${Date.now()}`, isOwn: true };
     setMessages((prev) => [...prev, msg]);
     socket?.emit('send_message', { jobId: activeRoom.jobId, receiverId: activeRoom.otherUserId, text: msg.text });
-    socket?.emit('typing_status', { roomId, userId: user?._id, isTyping: false });
+    socket?.emit('typing_status', { roomId, userId: myId, isTyping: false });
+    qc.invalidateQueries({ queryKey: ['conversations'] });
     setInputText('');
     clearTimeout(typingTimeout.current);
-  }, [inputText, activeRoom, user]);
+  }, [inputText, activeRoom, user, qc]);
 
   const handleInput = (e) => {
     setInputText(e.target.value);
     const socket = socketService.getSocket();
     const roomId = `${activeRoom?.jobId}_${activeRoom?.otherUserId}`;
-    socket?.emit('typing_status', { roomId, userId: user?._id, isTyping: true });
+    const myId = user?._id || user?.id;
+    socket?.emit('typing_status', { roomId, userId: myId, isTyping: true });
     clearTimeout(typingTimeout.current);
-    typingTimeout.current = setTimeout(() => socket?.emit('typing_status', { roomId, userId: user?._id, isTyping: false }), 1500);
+    typingTimeout.current = setTimeout(() => socket?.emit('typing_status', { roomId, userId: myId, isTyping: false }), 1500);
   };
 
   const filtered = conversations.filter((c) => c.name?.toLowerCase().includes(search.toLowerCase()));
@@ -89,7 +146,7 @@ const Messages = () => {
               <button onClick={() => navigate(-1)} className="p-1.5 bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors" title="Back">
                 <ArrowLeft className="w-4 h-4" />
               </button>
-              <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} className="p-1.5 bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors" title="Home">
+              <button onClick={() => navigate('/')} className="p-1.5 bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors" title="Home">
                 <Home className="w-4 h-4" />
               </button>
               <h2 className="text-xl font-bold text-foreground ml-1">Messages</h2>
@@ -189,17 +246,18 @@ const Messages = () => {
             {messages.length === 0
               ? <p className="text-center text-muted-foreground text-sm py-10">No messages yet. Say hello! 👋</p>
               : messages.map((msg) => {
-                  const isOwn = msg.senderId === user?._id || msg.sender === user?._id || msg.isOwn;
+                  const myId = user?._id || user?.id;
+                  const isOwn = !!myId && (msg.senderId === myId || msg.sender === myId || msg.isOwn);
                   return (
                     <div key={msg._id} className={`flex gap-3 max-w-[78%] ${isOwn ? 'ml-auto flex-row-reverse' : ''}`}>
                       {!isOwn && (
                         <img 
                           src={activeRoom.profilePic} 
-                          alt={msg.senderName}
+                          alt={msg.senderName || activeRoom.name}
                           className="w-7 h-7 rounded-full object-cover border border-border flex-shrink-0"
                           onError={(e) => {
                             e.target.onerror = null;
-                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName || 'User'}`;
+                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName || activeRoom.name || 'User'}`;
                           }}
                         />
                       )}

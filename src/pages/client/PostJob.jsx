@@ -12,7 +12,7 @@ import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { MapPin, Briefcase, DollarSign, FileText, Send, Loader2, AlertCircle } from 'lucide-react';
+import { MapPin, Briefcase, DollarSign, FileText, Send, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useJobs } from '../../hooks/useJobs';
 import { useGeolocation } from '../../hooks/useGeolocation';
@@ -47,7 +47,21 @@ const PostJob = () => {
   // Real user location — no more hardcoded Delhi coords
   const geo = useGeolocation();
 
-  const { register, handleSubmit, formState: { errors } } = useForm({
+  const [selectedCategory, setSelectedCategory] = React.useState('');
+  const [isDropdownOpen, setIsDropdownOpen] = React.useState(false);
+  const dropdownRef = React.useRef(null);
+
+  React.useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const { register, handleSubmit, setValue, trigger, formState: { errors } } = useForm({
     resolver: zodResolver(jobSchema),
     defaultValues: { radius: 25 },
   });
@@ -118,15 +132,83 @@ const PostJob = () => {
             </div>
 
             {/* Category */}
-            <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Category</label>
-              <select
-                {...register('category')}
-                className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground focus:outline-none focus:border-primary/40 transition-all font-medium cursor-pointer"
+            <div className="relative" ref={dropdownRef}>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                📂 Category
+              </label>
+              
+              {/* Hidden Input for Form Submission */}
+              <input type="hidden" {...register('category')} />
+
+              {/* Trigger Button */}
+              <button
+                type="button"
+                onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                className={`w-full flex items-center justify-between px-4 py-3 bg-accent/40 border ${
+                  isDropdownOpen ? 'border-primary/80 ring-2 ring-primary/20' : 'border-border'
+                } rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none transition-all font-medium text-left cursor-pointer`}
               >
-                <option value="" className="bg-card text-foreground">Select a category…</option>
-                {CATEGORIES.map((c) => <option key={c} value={c} className="bg-card text-foreground">{c}</option>)}
-              </select>
+                <span className="flex items-center gap-2.5">
+                  {selectedCategory ? (
+                    <>
+                      <span className="text-lg">
+                        {selectedCategory === 'Design & Creative' && '🎨'}
+                        {selectedCategory === 'Development & IT' && '💻'}
+                        {selectedCategory === 'Writing & Translation' && '✍️'}
+                        {selectedCategory === 'Marketing & Sales' && '📈'}
+                        {selectedCategory === 'Home Services' && '🛠️'}
+                        {selectedCategory === 'Teaching & Training' && '🎓'}
+                        {selectedCategory === 'Legal & Finance' && '💼'}
+                      </span>
+                      <span>{selectedCategory}</span>
+                    </>
+                  ) : (
+                    <span className="text-muted-foreground">Select a category…</span>
+                  )}
+                </span>
+                <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-300 ${isDropdownOpen ? 'rotate-180 text-primary' : ''}`} />
+              </button>
+
+              {/* Dropdown Options Popover */}
+              {isDropdownOpen && (
+                <div className="absolute left-0 right-0 mt-2 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-2 space-y-1">
+                    {CATEGORIES.map((c) => {
+                      const isSelected = selectedCategory === c;
+                      const icon = 
+                        c === 'Design & Creative' ? '🎨' :
+                        c === 'Development & IT' ? '💻' :
+                        c === 'Writing & Translation' ? '✍️' :
+                        c === 'Marketing & Sales' ? '📈' :
+                        c === 'Home Services' ? '🛠️' :
+                        c === 'Teaching & Training' ? '🎓' :
+                        c === 'Legal & Finance' ? '💼' : '📂';
+
+                      return (
+                        <button
+                          key={c}
+                          type="button"
+                          onClick={() => {
+                            setSelectedCategory(c);
+                            setValue('category', c);
+                            trigger('category');
+                            setIsDropdownOpen(false);
+                          }}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all text-left cursor-pointer ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground'
+                              : 'text-foreground hover:bg-accent/60'
+                          }`}
+                        >
+                          <span className="text-lg">{icon}</span>
+                          <span className="flex-1">{c}</span>
+                          {isSelected && <span className="text-xs font-bold uppercase tracking-wider">Active</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
               {errors.category && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.category.message}</p>}
             </div>
 

@@ -33,7 +33,11 @@ const CATEGORIES = ['All', 'Design', 'Development', 'Writing', 'Marketing', 'Plu
 const Discover = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const userCoords = useSelector((s) => s.client?.details?.currentLocation);
+  
+  const { role } = useSelector((s) => s.auth);
+  const isClient = role === 'CLIENT';
+  
+  const userCoords = useSelector((s) => s.client?.details?.currentLocation) || useSelector((s) => s.auth?.user?.location);
 
   const [viewMode, setViewMode] = useState('list');
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
@@ -43,8 +47,8 @@ const Discover = () => {
   const [debouncedKeyword, setDebouncedKeyword] = useState(searchParams.get('keyword') || '');
   const [showFilters, setShowFilters] = useState(false);
 
-  const lat = userCoords?.lat ?? 23.2599;
-  const lng = userCoords?.lng ?? 77.4126;
+  const lat = userCoords?.lat ?? userCoords?.coordinates?.[1] ?? 23.2599;
+  const lng = userCoords?.lng ?? userCoords?.coordinates?.[0] ?? 77.4126;
 
   const debouncedSet = useCallback(debounce((v) => setDebouncedKeyword(v), 500), []);
 
@@ -54,55 +58,81 @@ const Discover = () => {
   };
 
   const geoQuery = useQuery({
-    queryKey: ['jobs-geo', lat, lng, radius, category, debouncedKeyword],
+    queryKey: [isClient ? 'freelancers-geo' : 'jobs-geo', lat, lng, radius, category, debouncedKeyword],
     queryFn: async () => {
       const params = {
         lat, lng, radius,
-        ...(category !== 'All' && { category: category.toLowerCase() }),
+        ...(category !== 'All' && { category: category }),
         ...(debouncedKeyword.trim() && { keyword: debouncedKeyword.trim() }),
       };
-      const { data } = await api.get('/geo/nearby-jobs', { params });
-      return data?.jobs ?? data ?? [];
+      const endpoint = isClient ? '/geo/nearby-freelancers' : '/geo/nearby-jobs';
+      const { data } = await api.get(endpoint, { params });
+      return isClient ? (data?.freelancers ?? data?.data ?? []) : (data?.jobs ?? data ?? []);
     },
     enabled: feedMode === 'geo',
   });
 
   const allQuery = useQuery({
-    queryKey: ['jobs-all', debouncedKeyword, category],
+    queryKey: [isClient ? 'freelancers-all' : 'jobs-all', debouncedKeyword, category],
     queryFn: async () => {
       const params = {
         status: 'open',
         limit: 40,
         ...(debouncedKeyword.trim() && { keyword: debouncedKeyword.trim() }),
-        ...(category !== 'All' && { category: category.toLowerCase() }),
+        ...(category !== 'All' && { category: category }),
       };
-      const endpoint = (debouncedKeyword.trim() || category !== 'All') ? '/jobs/search' : '/jobs';
-      const { data } = await api.get(endpoint, { params });
-      return Array.isArray(data) ? data : (data?.jobs ?? data?.data ?? []);
+      if (isClient) {
+        const { data } = await api.get('/jobs/search', { params });
+        return data?.freelancers ?? [];
+      } else {
+        const endpoint = (debouncedKeyword.trim() || category !== 'All') ? '/jobs/search' : '/jobs';
+        const { data } = await api.get(endpoint, { params });
+        return Array.isArray(data) ? data : (data?.jobs ?? data?.data ?? []);
+      }
     },
     enabled: feedMode === 'all',
   });
 
   const activeQuery = feedMode === 'all' ? allQuery : geoQuery;
-  const jobs = activeQuery.data ?? [];
+  const items = activeQuery.data ?? [];
   const isLoading = activeQuery.isLoading;
   const isError = activeQuery.isError;
 
-  const mapJobs = jobs.map((job) => ({
-    id: job._id,
-    title: job.title,
-    category: job.category,
-    distance: job.distance ? `${job.distance.toFixed(1)} km` : (job.location?.address || 'Remote'),
-    budget: formatBudget(job),
-    posted: timeAgo(job.createdAt),
-    postedFull: job.createdAt ? new Date(job.createdAt).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
-    status: job.status,
-    desc: job.description,
-    skills: job.skillsRequired || [],
-    location: job.location?.coordinates ? { coordinates: job.location.coordinates } : undefined,
-    address: job.location?.address,
-    budgetRange: job.budgetRange,
-  }));
+  const mapItems = items.map((item) => {
+    if (isClient) {
+      return {
+        id: item._id || item.id,
+        title: item.name,
+        username: item.username,
+        category: item.title || 'Freelancer',
+        distance: item.distance ? `${item.distance.toFixed(1)} km` : (item.location?.address || item.location?.city || 'Local'),
+        budget: `₹${item.hourlyRate || 0}/hr`,
+        posted: 'Active',
+        status: item.isAvailable ? 'available' : 'busy',
+        desc: item.bio || 'No bio provided.',
+        skills: item.skills || [],
+        location: item.location?.coordinates ? { coordinates: item.location.coordinates } : undefined,
+        address: item.location?.address || item.location?.city || 'Local',
+        profilePic: item.profilePic || item.avatar,
+      };
+    } else {
+      return {
+        id: item._id || item.id,
+        title: item.title,
+        category: item.category,
+        distance: item.distance ? `${item.distance.toFixed(1)} km` : (item.location?.address || 'Remote'),
+        budget: formatBudget(item),
+        posted: timeAgo(item.createdAt),
+        postedFull: item.createdAt ? new Date(item.createdAt).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '',
+        status: item.status,
+        desc: item.description,
+        skills: item.skillsRequired || [],
+        location: item.location?.coordinates ? { coordinates: item.location.coordinates } : undefined,
+        address: item.location?.address,
+        budgetRange: item.budgetRange,
+      };
+    }
+  });
 
   // Active filter count for the badge
   const activeFilterCount = (category !== 'All' ? 1 : 0) + (feedMode === 'geo' ? 1 : 0);
@@ -118,7 +148,7 @@ const Discover = () => {
             <div className="flex-1 relative">
               <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <input type="text" value={keyword} onChange={handleKeywordChange}
-                placeholder="Search jobs, skills, keywords…"
+                placeholder={isClient ? "Search freelancers, skills, keywords…" : "Search jobs, skills, keywords…"}
                 className="w-full bg-background border border-border text-foreground rounded-xl py-2.5 pl-10 pr-4 focus:outline-none focus:border-primary text-sm transition-colors" />
               {keyword && (
                 <button onClick={() => { setKeyword(''); debouncedSet(''); }}
@@ -160,7 +190,7 @@ const Discover = () => {
               <div>
                 <p className="text-xs text-muted-foreground uppercase tracking-wider font-bold mb-2">Feed Mode</p>
                 <div className="flex gap-2">
-                  {[{ key: 'all', label: '🌐 All Jobs' }, { key: 'geo', label: '📍 Nearby' }].map(({ key, label }) => (
+                  {[{ key: 'all', label: isClient ? '🌐 All Freelancers' : '🌐 All Jobs' }, { key: 'geo', label: '📍 Nearby' }].map(({ key, label }) => (
                     <button key={key} onClick={() => setFeedMode(key)}
                       className={`px-4 py-2 rounded-xl text-sm font-semibold border transition-all cursor-pointer ${
                         feedMode === key ? 'bg-primary text-primary-foreground border-primary' : 'bg-card border-border text-foreground hover:border-primary/50'
@@ -219,87 +249,164 @@ const Discover = () => {
         {isLoading ? (
           <div className="flex flex-col items-center justify-center py-20 gap-3">
             <Loader2 className="w-10 h-10 animate-spin text-primary" />
-            <p className="text-muted-foreground text-sm">Loading jobs…</p>
+            <p className="text-muted-foreground text-sm">
+              {isClient ? 'Loading freelancers…' : 'Loading jobs…'}
+            </p>
           </div>
         ) : isError ? (
           <div className="text-center py-20">
-            <p className="text-destructive mb-3 font-medium">Could not load jobs.</p>
+            <p className="text-destructive mb-3 font-medium">
+              {isClient ? 'Could not load freelancers.' : 'Could not load jobs.'}
+            </p>
             <button onClick={() => activeQuery.refetch()} className="text-primary hover:underline text-sm font-semibold cursor-pointer">Retry</button>
           </div>
         ) : viewMode === 'map' ? (
-          <JobMap jobs={mapJobs.filter((j) => j.location)} center={[lat, lng]} />
+          <JobMap jobs={mapItems.filter((j) => j.location)} center={[lat, lng]} isFreelancerMap={isClient} />
         ) : (
           <div className="space-y-4">
             <div className="flex justify-between items-center mb-2">
               <h2 className="font-bold text-xl text-foreground">
-                {feedMode === 'geo' ? '📍 Nearby Jobs' : debouncedKeyword ? `Results for "${debouncedKeyword}"` : '🌐 All Open Jobs'}
+                {isClient
+                  ? (feedMode === 'geo' ? '📍 Nearby Freelancers' : debouncedKeyword ? `Results for "${debouncedKeyword}"` : '🌐 Active Freelancers')
+                  : (feedMode === 'geo' ? '📍 Nearby Jobs' : debouncedKeyword ? `Results for "${debouncedKeyword}"` : '🌐 All Open Jobs')
+                }
               </h2>
-              <span className="text-sm text-muted-foreground font-medium">{mapJobs.length} found</span>
+              <span className="text-sm text-muted-foreground font-medium">{mapItems.length} found</span>
             </div>
-            {mapJobs.length === 0 ? (
+            {mapItems.length === 0 ? (
               <div className="text-center py-16">
                 <Search className="w-12 h-12 mx-auto text-muted-foreground opacity-20 mb-4" />
-                <p className="text-muted-foreground text-lg font-medium mb-1">No jobs found</p>
-                <p className="text-muted-foreground text-sm">Try different keywords or increase the search radius.</p>
+                <p className="text-muted-foreground text-lg font-medium mb-1">
+                  {isClient ? 'No freelancers found' : 'No jobs found'}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {isClient ? 'Try different keywords or filters.' : 'Try different keywords or increase the search radius.'}
+                </p>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                {mapJobs.map((job) => (
-                  <div key={job.id} onClick={() => navigate(`/job/${job.id}`)}
-                    className="bg-card border border-border rounded-2xl p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col">
-                    {/* Top badges */}
-                    <div className="flex items-center gap-2 mb-3">
-                      <span className="bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide border border-primary/20">
-                        {job.category || 'General'}
-                      </span>
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        job.status === 'open'
-                          ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
-                          : 'bg-muted text-muted-foreground border border-border'
-                      }`}>
-                        {job.status}
-                      </span>
-                    </div>
+                {mapItems.map((item) => (
+                  isClient ? (
+                    // Freelancer Card
+                    <div key={item.id} onClick={() => navigate(`/freelancer/${item.id}`)}
+                      className="bg-card border border-border rounded-2xl p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col justify-between">
+                      <div>
+                        {/* Avatar & Info */}
+                        <div className="flex items-start gap-3.5 mb-4">
+                          <img
+                            src={item.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.title}`}
+                            alt={item.title}
+                            className="w-12 h-12 rounded-xl object-cover border border-border shrink-0"
+                            onError={(e) => {
+                              e.target.onerror = null;
+                              e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.title}`;
+                            }}
+                          />
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                                {item.title}
+                              </h3>
+                              {item.username && (
+                                <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md font-extrabold">
+                                  @{item.username}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground font-semibold mt-0.5 truncate">{item.category}</p>
+                          </div>
+                        </div>
 
-                    {/* Title */}
-                    <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors mb-2 line-clamp-2 leading-snug">
-                      {job.title}
-                    </h3>
+                        {/* Description */}
+                        <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed">
+                          {item.desc}
+                        </p>
 
-                    {/* Description */}
-                    <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed flex-1">
-                      {job.desc}
-                    </p>
-
-                    {/* Skills */}
-                    {job.skills.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-3">
-                        {job.skills.slice(0, 3).map((s) => (
-                          <span key={s} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md">{s}</span>
-                        ))}
-                        {job.skills.length > 3 && (
-                          <span className="text-xs text-muted-foreground">+{job.skills.length - 3}</span>
+                        {/* Skills */}
+                        {item.skills.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mb-3">
+                            {item.skills.slice(0, 3).map((s) => (
+                              <span key={s} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md">{s}</span>
+                            ))}
+                            {item.skills.length > 3 && (
+                              <span className="text-xs text-muted-foreground">+{item.skills.length - 3}</span>
+                            )}
+                          </div>
                         )}
                       </div>
-                    )}
 
-                    {/* Footer */}
-                    <div className="pt-3 border-t border-border/60 flex items-center justify-between">
-                      <div>
-                        <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
-                          {job.budget}
-                        </span>
-                      </div>
-                      <div className="flex flex-col items-end gap-0.5">
-                        <div className="flex items-center gap-1 text-muted-foreground text-xs">
-                          <MapPin className="w-3 h-3" /> {job.distance}
+                      {/* Footer */}
+                      <div className="pt-3 mt-auto border-t border-border/60 flex items-center justify-between">
+                        <div>
+                          <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
+                            {item.budget}
+                          </span>
                         </div>
-                        <div className="flex items-center gap-1 text-muted-foreground text-[10px]" title={job.postedFull}>
-                          <Calendar className="w-3 h-3" /> {job.posted}
+                        <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                            <MapPin className="w-3 h-3" /> {item.distance}
+                          </div>
                         </div>
                       </div>
                     </div>
-                  </div>
+                  ) : (
+                    // Job Card
+                    <div key={item.id} onClick={() => navigate(`/job/${item.id}`)}
+                      className="bg-card border border-border rounded-2xl p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col">
+                      {/* Top badges */}
+                      <div className="flex items-center gap-2 mb-3">
+                        <span className="bg-primary/10 text-primary text-[10px] font-bold px-2.5 py-1 rounded-full uppercase tracking-wide border border-primary/20">
+                          {item.category || 'General'}
+                        </span>
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          item.status === 'open'
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-muted text-muted-foreground border border-border'
+                        }`}>
+                          {item.status}
+                        </span>
+                      </div>
+
+                      {/* Title */}
+                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors mb-2 line-clamp-2 leading-snug">
+                        {item.title}
+                      </h3>
+
+                      {/* Description */}
+                      <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed flex-1">
+                        {item.desc}
+                      </p>
+
+                      {/* Skills */}
+                      {item.skills.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {item.skills.slice(0, 3).map((s) => (
+                            <span key={s} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md">{s}</span>
+                          ))}
+                          {item.skills.length > 3 && (
+                            <span className="text-xs text-muted-foreground">+{item.skills.length - 3}</span>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Footer */}
+                      <div className="pt-3 border-t border-border/60 flex items-center justify-between">
+                        <div>
+                          <span className="text-lg font-extrabold text-emerald-600 dark:text-emerald-400">
+                            {item.budget}
+                          </span>
+                        </div>
+                        <div className="flex flex-col items-end gap-0.5">
+                          <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                            <MapPin className="w-3 h-3" /> {item.distance}
+                          </div>
+                          <div className="flex items-center gap-1 text-muted-foreground text-[10px]" title={item.postedFull}>
+                            <Calendar className="w-3 h-3" /> {item.posted}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )
                 ))}
               </div>
             )}

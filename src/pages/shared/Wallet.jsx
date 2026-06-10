@@ -77,7 +77,7 @@ const Wallet = () => {
       <div className="max-w-4xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
           <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Wallet & Payments</h1>
-          <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} 
+          <button onClick={() => navigate('/')} 
             className="self-start sm:self-center flex items-center gap-2 bg-accent/40 border border-border hover:bg-accent px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
             <Home className="w-4 h-4 text-primary" />
             <span>Home</span>
