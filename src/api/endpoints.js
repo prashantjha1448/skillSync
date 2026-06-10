@@ -2,6 +2,7 @@ import api from '../services/api';
 
 export const authApi = {
   register:   (d) => api.post('/auth/register', d),
+  verifyRegistration: (d) => api.post('/auth/verify-registration', d),
   login:      (d) => api.post('/auth/login', d),
   me:         ()  => api.get('/auth/me'),
   logout:     ()  => api.post('/auth/logout'),

@@ -11,13 +11,19 @@ import api from '../services/api';
 
 /* ---- Schemas ---- */
 const loginSchema = z.object({
-  email:    z.string().email('Invalid email'),
+  email:    z.string().min(3, 'Username or Email is too short').refine((val) => {
+    const isEmail = z.string().email().safeParse(val).success;
+    const isUsername = /^[a-zA-Z0-9_]{3,}$/.test(val);
+    return isEmail || isUsername;
+  }, { message: 'Must be a valid email or username' }),
   password: z.string().min(6, 'Min 6 characters'),
 });
 const registerSchema = z.object({
   name:     z.string().min(2, 'Name required'),
   email:    z.string().email('Invalid email'),
+  username: z.string().min(3, 'Min 3 characters').regex(/^[a-zA-Z0-9_]+$/, 'Letters, numbers and underscores only'),
   password: z.string().min(6, 'Min 6 characters'),
+  gender:   z.enum(['MALE', 'FEMALE', 'OTHER'], { required_error: 'Gender is required' }),
 });
 
 /* ---- Google SDK loader ---- */
@@ -53,17 +59,74 @@ const Auth = () => {
   const [isResetting, setIsResetting] = useState(false);
 
   const [selectedRole, setSelectedRole] = useState('FREELANCER');
-  const { login, isLoggingIn, register, isRegistering, socialLogin, isSocialLoading } = useAuth();
+  const [isRegistrationOtpSent, setIsRegistrationOtpSent] = useState(false);
+  const [registrationEmail, setRegistrationEmail] = useState('');
+  const [regOtp, setRegOtp] = useState('');
+  const { login, isLoggingIn, register, isRegistering, verifyRegistration, isVerifyingRegistration, socialLogin, isSocialLoading } = useAuth();
 
-  const { register: formReg, handleSubmit, reset, formState: { errors } } = useForm({
+  const { register: formReg, handleSubmit, reset, watch, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(isLogin ? loginSchema : registerSchema),
+    defaultValues: { gender: 'MALE' }
   });
+
+  const usernameValue = watch('username');
+  const [usernameStatus, setUsernameStatus] = useState(null); // 'checking', 'available', 'taken', 'invalid', null
+  const [selectedGender, setSelectedGender] = useState('MALE');
+
+  useEffect(() => {
+    if (isLogin || !usernameValue || usernameValue.length < 3) {
+      setUsernameStatus(null);
+      return;
+    }
+    
+    if (!/^[a-zA-Z0-9_]+$/.test(usernameValue)) {
+      setUsernameStatus('invalid');
+      return;
+    }
+
+    setUsernameStatus('checking');
+    const delayDebounce = setTimeout(async () => {
+      try {
+        const res = await api.get('/auth/check-username', { params: { username: usernameValue } });
+        if (res.data?.available) {
+          setUsernameStatus('available');
+        } else {
+          setUsernameStatus('taken');
+        }
+      } catch {
+        setUsernameStatus(null);
+      }
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
+  }, [usernameValue, isLogin]);
+
+  useEffect(() => {
+    if (!isLogin) {
+      setValue('gender', 'MALE');
+    }
+  }, [isLogin, setValue]);
 
   useEffect(() => { loadGoogleSDK(); loadFacebookSDK(); }, []);
 
   const onSubmit = (data) => {
-    if (isLogin) login({ email: data.email, password: data.password });
-    else register({ name: data.name, email: data.email, password: data.password, role: selectedRole });
+    if (isLogin) {
+      login({ email: data.email, password: data.password });
+    } else {
+      if (usernameStatus === 'taken') {
+        toast.error('Please choose a unique username');
+        return;
+      }
+      setRegistrationEmail(data.email);
+      register({ name: data.name, email: data.email, username: data.username, password: data.password, role: selectedRole, gender: data.gender }, {
+        onSuccess: () => setIsRegistrationOtpSent(true)
+      });
+    }
+  };
+
+  const handleVerifyRegistration = (e) => {
+    e.preventDefault();
+    verifyRegistration({ email: registrationEmail, otp: regOtp });
   };
 
   const handleForgotPassword = async (e) => {
@@ -126,6 +189,7 @@ const Auth = () => {
   const switchTab = (toLogin) => { 
     setIsLogin(toLogin); 
     setIsForgotPassword(false);
+    setIsRegistrationOtpSent(false);
     reset(); 
   };
 
@@ -238,6 +302,27 @@ const Auth = () => {
                 Back to Login
               </button>
             </form>
+          ) : isRegistrationOtpSent ? (
+            <form onSubmit={handleVerifyRegistration} className="space-y-5">
+              <div className="mb-4">
+                <p className="text-sm font-medium text-foreground bg-primary/10 border border-primary/20 rounded-xl p-4">
+                  We've sent a 6-digit OTP to <span className="font-bold">{registrationEmail}</span>. It will expire in 10 minutes.
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Enter Registration OTP</label>
+                <input type="text" value={regOtp} onChange={e => setRegOtp(e.target.value)} placeholder="6-digit OTP"
+                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors tracking-widest font-mono" required />
+              </div>
+              <button type="submit" disabled={isVerifyingRegistration}
+                className="w-full bg-primary hover:opacity-90 disabled:opacity-50 text-primary-foreground py-3.5 rounded-xl font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-primary/20">
+                {isVerifyingRegistration ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Verify & Create Account'}
+              </button>
+              <button type="button" onClick={() => setIsRegistrationOtpSent(false)}
+                className="w-full text-sm font-bold text-muted-foreground hover:text-foreground transition-colors mt-2">
+                Back to Registration
+              </button>
+            </form>
           ) : (
             <>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
@@ -266,17 +351,65 @@ const Auth = () => {
             )}
 
             {!isLogin && (
-              <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Full Name</label>
-                <input {...formReg('name')} placeholder="John Doe"
-                  className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors" />
-                {errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.name.message}</p>}
-              </div>
+              <>
+                <div>
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Full Name</label>
+                  <input {...formReg('name')} placeholder="John Doe"
+                    className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors" />
+                  {errors.name && <p className="text-red-500 text-xs mt-1 font-medium">{errors.name.message}</p>}
+                </div>
+                <div className="relative">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Username</label>
+                  <div className="relative">
+                    <input {...formReg('username')} placeholder="johndoe123"
+                      className={`w-full bg-background border rounded-xl px-4 py-3 pr-10 text-foreground text-sm focus:outline-none focus:border-primary transition-colors ${
+                        usernameStatus === 'available' ? 'border-emerald-500/50' : usernameStatus === 'taken' ? 'border-red-500/50' : 'border-border'
+                      }`} />
+                    <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center">
+                      {usernameStatus === 'checking' && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground" />}
+                      {usernameStatus === 'available' && <span className="text-emerald-500 font-bold text-base">✓</span>}
+                      {usernameStatus === 'taken' && <span className="text-red-500 font-bold text-base">✗</span>}
+                    </div>
+                  </div>
+                  {usernameStatus === 'available' && <p className="text-emerald-500 text-[10px] mt-1 font-semibold">Username is available</p>}
+                  {usernameStatus === 'taken' && <p className="text-red-500 text-[10px] mt-1 font-semibold">Username is already taken</p>}
+                  {usernameStatus === 'invalid' && <p className="text-amber-500 text-[10px] mt-1 font-semibold">Only letters, numbers, and underscores allowed</p>}
+                  {errors.username && <p className="text-red-500 text-xs mt-1 font-medium">{errors.username.message}</p>}
+                </div>
+
+                {/* Gender Selector */}
+                <div className="space-y-2">
+                  <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Gender</label>
+                  <div className="flex gap-3">
+                    {[
+                      { val: 'MALE', label: 'Male' },
+                      { val: 'FEMALE', label: 'Female' },
+                      { val: 'OTHER', label: 'Other' },
+                    ].map((g) => (
+                      <button
+                        key={g.val}
+                        type="button"
+                        onClick={() => {
+                          setSelectedGender(g.val);
+                          setValue('gender', g.val);
+                        }}
+                        className={`flex-1 py-3 px-2 rounded-xl border-2 font-bold text-sm transition-all ${
+                          selectedGender === g.val
+                            ? 'border-primary bg-primary/10 text-primary'
+                            : 'border-border bg-background text-muted-foreground hover:border-primary/40'
+                        }`}
+                      >
+                        {g.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </>
             )}
 
             <div>
-              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Email Address</label>
-              <input type="email" {...formReg('email')} placeholder="you@example.com"
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1.5">Email or Username</label>
+              <input type="text" {...formReg('email')} placeholder="you@example.com or username"
                 className="w-full bg-background border border-border rounded-xl px-4 py-3 text-foreground text-sm focus:outline-none focus:border-primary transition-colors" />
               {errors.email && <p className="text-red-500 text-xs mt-1 font-medium">{errors.email.message}</p>}
             </div>

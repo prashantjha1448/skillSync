@@ -51,7 +51,7 @@ const ProfileDropdown = () => {
       >
         <div className="relative">
           <img 
-            src={user?.avatar || "https://api.dicebear.com/7.x/avataaars/svg?seed=prashant"} 
+            src={user?.profilePic || user?.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${user?.username || user?.name || 'user'}`} 
             alt="User Session Trigger" 
             className="w-7 h-7 rounded-lg bg-primary/10 object-cover ring-1 ring-border group-hover:scale-105 transition-transform duration-200"
           />
@@ -59,7 +59,7 @@ const ProfileDropdown = () => {
         </div>
         
         <span className="hidden sm:block text-xs font-medium text-foreground/90 tracking-wide group-hover:text-foreground transition-colors max-w-[100px] truncate">
-          {user?.name || 'Prashant Jha'}
+          {user?.name || 'User'}
         </span>
         
         <ChevronDown 
@@ -81,12 +81,12 @@ const ProfileDropdown = () => {
             {/* Unique Dynamic Username Output Line */}
             <p className="text-[11px] font-bold text-primary dark:text-primary-foreground/90 tracking-wide flex items-center gap-1">
               <Sparkles size={11} className="text-primary fill-current animate-pulse" /> 
-              @{user?.username || 'prashant_jha'}
+              @{user?.username || user?.name?.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'user'}
             </p>
             
             {/* Real Full Name display field */}
             <p className="text-sm font-bold text-foreground truncate mt-1 tracking-tight">
-              {user?.name || 'Prashant Jha'}
+              {user?.name || 'User'}
             </p>
 
             

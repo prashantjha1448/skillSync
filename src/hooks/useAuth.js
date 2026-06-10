@@ -34,13 +34,22 @@ export const useAuth = () => {
   const registerMutation = useMutation({
     mutationFn: authApi.register,
     onSuccess: (res) => {
+      // Don't call afterAuth because the user is not verified yet
+      toast.success(res.data?.message || 'OTP sent to your email!');
+    },
+    onError: (err) => toast.error(err.response?.data?.message || 'Registration failed.'),
+  });
+
+  const verifyRegistrationMutation = useMutation({
+    mutationFn: authApi.verifyRegistration,
+    onSuccess: (res) => {
       const u = afterAuth(res);
       if (!u) return;
-      toast.success('Account created!');
+      toast.success('Account verified and created successfully!');
       if (!u.role) navigate('/auth/select-role', { state: { userId: u.id } });
       else navigate(u.role.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard');
     },
-    onError: (err) => toast.error(err.response?.data?.message || 'Registration failed.'),
+    onError: (err) => toast.error(err.response?.data?.message || 'Verification failed.'),
   });
 
   const socialMutation = useMutation({
@@ -72,7 +81,9 @@ export const useAuth = () => {
     login:        loginMutation.mutate,
     isLoggingIn:  loginMutation.isPending,
     register:     registerMutation.mutate,
-    isRegistering:registerMutation.isPending,
+    isRegistering: registerMutation.isPending,
+    verifyRegistration: verifyRegistrationMutation.mutate,
+    isVerifyingRegistration: verifyRegistrationMutation.isPending,
     socialLogin:  socialMutation.mutate,
     isSocialLoading: socialMutation.isPending,
     assignRole:   assignRoleMutation.mutate,

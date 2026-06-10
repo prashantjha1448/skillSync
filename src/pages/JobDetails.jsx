@@ -231,7 +231,7 @@ const JobDetails = () => {
                       )}
                       {p.status === 'accepted' && (
                         <div className="flex flex-wrap gap-2 pt-3 border-t border-border/60">
-                          <button onClick={() => navigate('/shared/messages')}
+                          <button onClick={() => navigate(`/shared/messages?jobId=${job._id}&otherUserId=${p.freelancer}`)}
                             className="flex items-center gap-1.5 bg-primary hover:opacity-90 text-primary-foreground px-4 py-2 rounded-xl font-bold text-xs transition-colors cursor-pointer">
                             <MessageSquare className="w-3.5 h-3.5" /> Chat
                           </button>

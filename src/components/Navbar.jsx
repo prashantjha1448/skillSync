@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   MapPin, Sun, Moon, MessageSquare, Compass,
-  ChevronDown, Crosshair, MapPinned, Search, Loader2, PlusCircle, Wallet
+  ChevronDown, Crosshair, MapPinned, Search, Loader2, PlusCircle, Wallet, Home
 } from 'lucide-react';
 import ProfileDropdown from './ui/ProfileDropdown';
 import Logo from './Logo';
@@ -13,6 +13,7 @@ import { useTheme } from '../context/ThemeContext';
 
 const Navbar = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   const dropdownRef = useRef(null);
 
@@ -85,6 +86,8 @@ const Navbar = () => {
     setManualCityInput('');
   };
 
+  const isDashboard = location.pathname === '/client/dashboard' || location.pathname === '/freelancer/dashboard';
+
   return (
     <nav className="sticky top-0 z-50 w-full bg-background border-b border-border transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-6 h-20 flex items-center justify-between">
@@ -152,6 +155,11 @@ const Navbar = () => {
 
         {/* MIDDLE: Nav Links */}
         <div className="flex items-center gap-1 bg-accent/20 p-1 border border-border rounded-xl">
+          {user && !isDashboard && (
+            <NavLink to={user.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard'} className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
+              <Home size={16} /><span>Home</span>
+            </NavLink>
+          )}
           <NavLink to="/discover" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
             <Compass size={16} /><span>Discover</span>
           </NavLink>
@@ -176,7 +184,16 @@ const Navbar = () => {
             {theme === 'dark' ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} className="text-primary" />}
           </button>
           <div className="h-5 w-px bg-border"></div>
-          <ProfileDropdown />
+          {user ? (
+            <ProfileDropdown />
+          ) : (
+            <NavLink
+              to="/auth"
+              className="px-5 py-2.5 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded-xl text-sm transition-all shadow-lg shadow-primary/10"
+            >
+              Log In
+            </NavLink>
+          )}
         </div>
       </div>
     </nav>

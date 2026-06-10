@@ -67,30 +67,44 @@ const SearchPage = () => {
 
   // Full results query — fires after user picks suggestion or presses enter
   const [submittedQuery, setSubmittedQuery] = useState(initialKeyword);
+  const [activeTab, setActiveTab] = useState('jobs'); // 'jobs' or 'freelancers'
 
-  const { data: results = [], isLoading: resultsLoading, isFetching: resultsFetching } = useQuery({
+  const { data: searchPayload = { jobs: [], freelancers: [] }, isLoading: resultsLoading, isFetching: resultsFetching } = useQuery({
     queryKey: ['search-results', submittedQuery],
-    queryFn: () =>
-      submittedQuery.trim()
-        ? api
-            .get('/jobs/search', { params: { keyword: submittedQuery, limit: 30 } })
-            .then((r) => r.data?.data ?? r.data?.jobs ?? r.data ?? [])
-        : api
-            .get('/jobs', { params: { limit: 30, status: 'open' } })
-            .then((r) => (Array.isArray(r.data) ? r.data : r.data?.jobs ?? r.data?.data ?? [])),
+    queryFn: async () => {
+      if (submittedQuery.trim()) {
+        const res = await api.get('/jobs/search', { params: { keyword: submittedQuery, limit: 30 } });
+        return {
+          jobs: res.data?.jobs ?? [],
+          freelancers: res.data?.freelancers ?? []
+        };
+      } else {
+        const res = await api.get('/jobs', { params: { limit: 30, status: 'open' } });
+        const jobs = Array.isArray(res.data) ? res.data : (res.data?.jobs ?? res.data?.data ?? []);
+        return {
+          jobs,
+          freelancers: []
+        };
+      }
+    },
     staleTime: 30_000,
   });
+
+  const jobs = searchPayload.jobs;
+  const freelancers = searchPayload.freelancers;
 
   const handleSearch = (e) => {
     e?.preventDefault();
     setShowSuggestions(false);
     setSubmittedQuery(query.trim());
+    setActiveTab('jobs');
   };
 
   const handleSuggestionClick = (job) => {
     setQuery(job.title);
     setSubmittedQuery(job.title);
     setShowSuggestions(false);
+    setActiveTab('jobs');
   };
 
   const handleClear = () => {
@@ -175,7 +189,10 @@ const SearchPage = () => {
             </h1>
             {!isLoading && (
               <p className="text-sm text-muted-foreground mt-1">
-                {results.length} {results.length === 1 ? 'job' : 'jobs'} found
+                {activeTab === 'jobs' 
+                  ? `${jobs.length} ${jobs.length === 1 ? 'job' : 'jobs'} found`
+                  : `${freelancers.length} ${freelancers.length === 1 ? 'freelancer' : 'freelancers'} found`
+                }
               </p>
             )}
           </div>
@@ -187,28 +204,50 @@ const SearchPage = () => {
           )}
         </div>
 
+        {/* Tab Selector */}
+        {submittedQuery && !isLoading && (
+          <div className="flex gap-2 p-1 bg-accent/20 border border-border rounded-xl mb-6 max-w-xs">
+            <button
+              onClick={() => setActiveTab('jobs')}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'jobs' ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Jobs ({jobs.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('freelancers')}
+              className={`flex-1 py-2.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                activeTab === 'freelancers' ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Freelancers ({freelancers.length})
+            </button>
+          </div>
+        )}
+
         {/* Skeleton loading */}
         {isLoading ? (
           <div className="grid sm:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => <JobSkeleton key={i} />)}
           </div>
-        ) : results.length === 0 ? (
+        ) : (activeTab === 'jobs' ? jobs.length === 0 : freelancers.length === 0) ? (
           <div className="text-center py-20">
             <Briefcase className="w-16 h-16 mx-auto text-muted-foreground opacity-20 mb-4" />
             <h3 className="text-xl font-bold text-foreground mb-2">No results found</h3>
             <p className="text-muted-foreground mb-6">
-              Try different keywords or browse all available jobs.
+              Try different keywords or browse all available options.
             </p>
             <button
               onClick={handleClear}
-              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all"
+              className="bg-primary text-primary-foreground px-6 py-2.5 rounded-xl font-bold text-sm hover:opacity-90 transition-all cursor-pointer"
             >
               Browse All Jobs
             </button>
           </div>
-        ) : (
+        ) : activeTab === 'jobs' ? (
           <div className="grid sm:grid-cols-2 gap-4">
-            {results.map((job) => (
+            {jobs.map((job) => (
               <div
                 key={job._id}
                 onClick={() => navigate(`/job/${job._id}`)}
@@ -243,6 +282,49 @@ const SearchPage = () => {
                     <MapPin className="w-3 h-3" />
                     {job.location?.address || 'Remote'}
                   </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid sm:grid-cols-2 gap-4">
+            {freelancers.map((free) => (
+              <div
+                key={free._id}
+                onClick={() => navigate(`/freelancer/${free._id}`)}
+                className="bg-card border border-border rounded-2xl p-6 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col justify-between"
+              >
+                <div className="flex items-start gap-4">
+                  <img
+                    src={free.profilePic || free.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${free.name}`}
+                    alt={free.name}
+                    className="w-12 h-12 rounded-xl object-cover border border-border shrink-0"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${free.name}`;
+                    }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">
+                        {free.name}
+                      </h3>
+                      <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-2.5 py-0.5 rounded-md uppercase font-extrabold">
+                        @{free.username || 'user'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground font-semibold mt-0.5 truncate">{free.title || 'Freelancer'}</p>
+                    <p className="text-xs text-muted-foreground mt-2 line-clamp-2 leading-relaxed">{free.bio || 'No bio provided.'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center justify-between pt-4 mt-4 border-t border-border/60">
+                  <span className="text-sm font-extrabold text-emerald-600 dark:text-emerald-400">
+                    ₹{free.hourlyRate || 0}/hr
+                  </span>
+                  <span className="text-xs font-bold text-primary group-hover:underline">
+                    View Profile →
+                  </span>
                 </div>
               </div>
             ))}

@@ -80,6 +80,7 @@ const router = createBrowserRouter([
       { path: 'shared/messages', loader: authLoader, element: <Messages /> },
       { path: 'shared/settings', loader: authLoader, element: <Settings /> },
       { path: 'shared/wallet',   loader: authLoader, element: <Wallet /> },
+      { path: 'freelancer/earnings', loader: freelancerLoader, element: <Earnings /> },
     ],
   },
 
@@ -106,7 +107,6 @@ const router = createBrowserRouter([
     loader: freelancerLoader,
     children: [
       { path: 'dashboard', element: <FreelancerDashboard /> },
-      { path: 'earnings',  element: <Earnings /> },
     ],
   },
 

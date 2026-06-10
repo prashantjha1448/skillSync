@@ -153,13 +153,21 @@ const FreelancerPublicProfile = () => {
                   { label: 'Active Projects', value: stats.activeProjects ?? '0', icon: Briefcase, color: 'blue' },
                   { label: 'Total Proposals', value: stats.totalProposals ?? '0', icon: Clock, color: 'amber' },
                   { label: 'Total Earned', value: profile.earnings?.allTimeIncome ? `₹${profile.earnings.allTimeIncome.toLocaleString('en-IN')}` : '₹0', icon: Star, color: 'indigo' },
-                ].map(({ label, value, icon: Icon, color }) => (
-                  <div key={label} className="bg-background rounded-xl p-4 border border-border/60 text-center">
-                    <Icon className={`w-5 h-5 text-${color}-500 mx-auto mb-2`} />
-                    <p className="text-xl font-extrabold text-foreground">{value}</p>
-                    <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mt-1">{label}</p>
-                  </div>
-                ))}
+                ].map(({ label, value, icon: Icon, color }) => {
+                  const textColors = {
+                    emerald: 'text-emerald-500',
+                    blue: 'text-blue-500',
+                    amber: 'text-amber-500',
+                    indigo: 'text-indigo-500',
+                  };
+                  return (
+                    <div key={label} className="bg-background rounded-xl p-4 border border-border/60 text-center">
+                      <Icon className={`w-5 h-5 ${textColors[color] || 'text-muted-foreground'} mx-auto mb-2`} />
+                      <p className="text-xl font-extrabold text-foreground">{value}</p>
+                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mt-1">{label}</p>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

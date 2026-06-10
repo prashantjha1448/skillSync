@@ -71,129 +71,133 @@ const PostJob = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-6 lg:p-10">
-      <div className="max-w-3xl mx-auto">
+    <div className="min-h-[calc(100vh-80px)] bg-background text-foreground p-6 lg:p-10 transition-colors duration-300 relative overflow-hidden">
+      {/* Background Glow */}
+      <div className="absolute top-10 right-10 w-96 h-96 bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute bottom-10 left-10 w-96 h-96 bg-purple-500/10 rounded-full blur-[100px] pointer-events-none" />
+
+      <div className="max-w-3xl mx-auto relative z-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-extrabold tracking-tight">Post a New Job</h1>
-          <p className="text-gray-400 mt-2">Connect with nearby talent by describing your requirements.</p>
+          <h1 className="text-3xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">Post a New Job</h1>
+          <p className="text-muted-foreground mt-2 font-medium">Connect with nearby talent by describing your requirements.</p>
         </div>
 
         {/* Location status banner */}
         {geo.error && (
-          <div className="mb-6 flex items-start gap-3 bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-amber-400 text-sm">
+          <div className="mb-6 flex items-start gap-3 bg-amber-500/10 border border-amber-500/20 rounded-2xl p-4 text-amber-400 text-sm">
             <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
             <div>
-              <p className="font-semibold">Location access denied</p>
-              <p className="text-amber-500/80 mt-0.5">Your job will use a default location. Enable location in browser settings for better results.</p>
+              <p className="font-bold">Location Access Denied</p>
+              <p className="text-amber-500/80 mt-0.5 font-medium">Your job will use a default location. Enable location in browser settings for better results.</p>
             </div>
           </div>
         )}
 
         {geo.latitude && !geo.error && (
-          <div className="mb-6 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/30 rounded-xl px-4 py-3 text-emerald-400 text-sm">
-            <MapPin className="w-4 h-4" />
-            <span>Posting from <strong>{geo.city}</strong></span>
+          <div className="mb-6 flex items-center gap-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl px-4 py-3.5 text-emerald-400 text-sm font-semibold shadow-sm">
+            <MapPin className="w-4 h-4 text-emerald-500" />
+            <span>Posting from <strong className="text-emerald-300">{geo.city || 'Bhopal, MP'}</strong></span>
           </div>
         )}
 
-        <div className="bg-gray-800 border border-gray-700 rounded-2xl p-6 lg:p-8 shadow-xl">
+        <div className="bg-card/90 backdrop-blur-md border border-border rounded-3xl p-6 lg:p-8 shadow-xl relative overflow-hidden">
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
 
             {/* Title */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                <Briefcase className="w-4 h-4 text-indigo-400" /> Job Title
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                <Briefcase className="w-4 h-4 text-primary" /> Job Title
               </label>
               <input
                 {...register('title')}
                 type="text"
                 placeholder="e.g. Mobile App UI/UX Design"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all"
               />
-              {errors.title && <p className="text-red-400 text-xs mt-1">{errors.title.message}</p>}
+              {errors.title && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.title.message}</p>}
             </div>
 
             {/* Category */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Category</label>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Category</label>
               <select
                 {...register('category')}
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground focus:outline-none focus:border-primary/40 transition-all font-medium cursor-pointer"
               >
-                <option value="">Select a category…</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                <option value="" className="bg-card text-foreground">Select a category…</option>
+                {CATEGORIES.map((c) => <option key={c} value={c} className="bg-card text-foreground">{c}</option>)}
               </select>
-              {errors.category && <p className="text-red-400 text-xs mt-1">{errors.category.message}</p>}
+              {errors.category && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.category.message}</p>}
             </div>
 
             {/* Description */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-indigo-400" /> Job Description
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-primary" /> Job Description
               </label>
               <textarea
                 {...register('description')}
                 rows="5"
                 placeholder="Describe the work, deliverables, timeline expectations…"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 resize-none transition-colors"
+                className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 resize-none transition-all"
               />
-              {errors.description && <p className="text-red-400 text-xs mt-1">{errors.description.message}</p>}
+              {errors.description && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.description.message}</p>}
             </div>
 
             {/* Skills */}
             <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Required Skills (comma-separated)</label>
+              <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Required Skills (comma-separated)</label>
               <input
                 {...register('skills')}
                 type="text"
                 placeholder="e.g. Figma, React, Node.js"
-                className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-indigo-500 transition-colors"
+                className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-primary/40 transition-all"
               />
             </div>
 
             {/* Budget + Radius */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                  <DollarSign className="w-4 h-4 text-emerald-400" /> Min Budget (₹)
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-emerald-500" /> Min Budget (₹)
                 </label>
                 <input
                   {...register('minBudget')}
                   type="number"
                   placeholder="500"
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground focus:outline-none focus:border-primary/40 transition-all"
                 />
-                {errors.minBudget && <p className="text-red-400 text-xs mt-1">{errors.minBudget.message}</p>}
+                {errors.minBudget && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.minBudget.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Max Budget (₹)</label>
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2">Max Budget (₹)</label>
                 <input
                   {...register('maxBudget')}
                   type="number"
                   placeholder="5000"
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground focus:outline-none focus:border-primary/40 transition-all"
                 />
-                {errors.maxBudget && <p className="text-red-400 text-xs mt-1">{errors.maxBudget.message}</p>}
+                {errors.maxBudget && <p className="text-red-500 text-xs mt-1.5 font-semibold">{errors.maxBudget.message}</p>}
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-orange-400" /> Search Radius (km)
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-2">
+                  <MapPin className="w-4 h-4 text-orange-500" /> Search Radius (km)
                 </label>
                 <input
                   {...register('radius')}
                   type="number"
                   placeholder="25"
-                  className="w-full px-4 py-3 bg-gray-900 border border-gray-700 rounded-xl text-white focus:outline-none focus:border-indigo-500 transition-colors"
+                  className="w-full px-4 py-3 bg-accent/40 border border-border rounded-xl text-foreground focus:outline-none focus:border-primary/40 transition-all"
                 />
               </div>
             </div>
 
             {/* Submit */}
-            <div className="pt-4 border-t border-gray-700">
+            <div className="pt-6 border-t border-border/80">
               <button
                 type="submit"
                 disabled={isPostingJob || geo.loading}
-                className="w-full flex justify-center items-center gap-2 py-4 px-6 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl disabled:opacity-50 transition-colors"
+                className="w-full flex justify-center items-center gap-2 py-4 px-6 bg-primary hover:opacity-90 text-primary-foreground font-bold rounded-xl disabled:opacity-50 transition-all shadow-lg shadow-primary/20 cursor-pointer"
               >
                 {isPostingJob
                   ? <><Loader2 className="w-5 h-5 animate-spin" /> Posting…</>

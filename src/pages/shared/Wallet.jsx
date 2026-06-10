@@ -7,8 +7,11 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Plus,
+  Home,
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import toast from 'react-hot-toast';
 import api from '../../services/api';
 import RazorpayButton from '../../components/RazorpayButton';
@@ -28,6 +31,8 @@ const useTransactions = (params = {}) =>
   });
 
 const Wallet = () => {
+  const navigate = useNavigate();
+  const { user } = useSelector((s) => s.auth);
   const qc = useQueryClient();
   const { data: wallet, isLoading: walletLoading } = useWalletData();
   const { data: txData, isLoading: txLoading } = useTransactions({ limit: 10 });
@@ -70,7 +75,14 @@ const Wallet = () => {
   return (
     <div className="min-h-screen bg-background text-foreground p-6 lg:p-10 transition-colors duration-300">
       <div className="max-w-4xl mx-auto">
-        <h1 className="text-3xl font-extrabold tracking-tight mb-8 text-foreground">Wallet & Payments</h1>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Wallet & Payments</h1>
+          <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} 
+            className="self-start sm:self-center flex items-center gap-2 bg-accent/40 border border-border hover:bg-accent px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+            <Home className="w-4 h-4 text-primary" />
+            <span>Home</span>
+          </button>
+        </div>
 
         {/* Balance Cards */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">

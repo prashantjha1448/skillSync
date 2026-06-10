@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Search, Send, Phone, Video, MoreVertical, Image as ImageIcon, Paperclip, Loader2, Wifi, WifiOff, ArrowLeft } from 'lucide-react';
+import { Search, Send, Phone, Video, MoreVertical, Image as ImageIcon, Paperclip, Loader2, Wifi, WifiOff, ArrowLeft, Home } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { useQuery } from '@tanstack/react-query';
@@ -82,14 +82,17 @@ const Messages = () => {
   return (
     <div className="h-[calc(100vh-40px)] m-4 md:m-8 bg-card border border-border rounded-2xl overflow-hidden flex shadow-2xl">
       {/* Sidebar */}
-      <div className="w-full md:w-80 lg:w-96 bg-card flex flex-col border-r border-border flex-shrink-0">
+      <div className={`${activeRoom ? 'hidden md:flex' : 'flex'} w-full md:w-80 lg:w-96 bg-card flex flex-col border-r border-border flex-shrink-0`}>
         <div className="p-4 border-b border-border">
           <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <button onClick={() => navigate(-1)} className="p-1.5 bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors" title="Back">
-                <ArrowLeft className="w-5 h-5" />
+                <ArrowLeft className="w-4 h-4" />
               </button>
-              <h2 className="text-xl font-bold text-foreground">Messages</h2>
+              <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} className="p-1.5 bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors" title="Home">
+                <Home className="w-4 h-4" />
+              </button>
+              <h2 className="text-xl font-bold text-foreground ml-1">Messages</h2>
             </div>
             {connected ? <Wifi className="w-4 h-4 text-emerald-500" /> : <WifiOff className="w-4 h-4 text-muted-foreground" />}
           </div>
@@ -114,9 +117,15 @@ const Messages = () => {
                   className={`p-4 border-b border-border/50 cursor-pointer hover:bg-accent/50 transition-colors border-l-4 ${activeKey === roomKey ? 'bg-accent/30 border-l-primary' : 'border-l-transparent'}`}>
                   <div className="flex justify-between items-start mb-1">
                     <div className="flex items-center gap-2">
-                      <div className="w-9 h-9 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center font-bold text-primary-foreground text-sm flex-shrink-0">
-                        {c.name?.[0]?.toUpperCase()}
-                      </div>
+                      <img 
+                        src={c.profilePic} 
+                        alt={c.name}
+                        className="w-9 h-9 rounded-full object-cover border border-border flex-shrink-0"
+                        onError={(e) => {
+                          e.target.onerror = null;
+                          e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${c.name}`;
+                        }}
+                      />
                       <div>
                         <h4 className="font-semibold text-foreground text-sm">{c.name}</h4>
                         <p className="text-xs text-primary truncate">{c.jobTitle || 'Direct'}</p>
@@ -137,13 +146,27 @@ const Messages = () => {
 
       {/* Chat Area */}
       {activeRoom ? (
-        <div className="hidden md:flex flex-1 flex-col bg-background min-w-0">
+        <div className={`${activeRoom ? 'flex' : 'hidden md:flex'} flex-1 flex-col bg-background min-w-0`}>
           {/* Header */}
           <div className="p-4 border-b border-border flex justify-between items-center bg-card/50 backdrop-blur-sm flex-shrink-0">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-primary to-purple-600 rounded-full flex items-center justify-center font-bold text-primary-foreground">
-                {activeRoom.name?.[0]?.toUpperCase()}
-              </div>
+              {/* Mobile Back Button */}
+              <button 
+                onClick={() => setActiveRoom(null)} 
+                className="p-1.5 md:hidden bg-muted hover:bg-accent rounded-lg text-muted-foreground transition-colors mr-1"
+                title="Back to List"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <img 
+                src={activeRoom.profilePic} 
+                alt={activeRoom.name}
+                className="w-10 h-10 rounded-full object-cover border border-border flex-shrink-0"
+                onError={(e) => {
+                  e.target.onerror = null;
+                  e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeRoom.name}`;
+                }}
+              />
               <div>
                 <h3 className="font-bold text-foreground text-sm">{activeRoom.name}</h3>
                 <p className="text-xs">
@@ -166,16 +189,30 @@ const Messages = () => {
             {messages.length === 0
               ? <p className="text-center text-muted-foreground text-sm py-10">No messages yet. Say hello! 👋</p>
               : messages.map((msg) => {
-                  const isOwn = msg.senderId === user?._id || msg.isOwn;
+                  const isOwn = msg.senderId === user?._id || msg.sender === user?._id || msg.isOwn;
                   return (
                     <div key={msg._id} className={`flex gap-3 max-w-[78%] ${isOwn ? 'ml-auto flex-row-reverse' : ''}`}>
                       {!isOwn && (
-                        <div className="w-7 h-7 bg-primary rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-primary-foreground">
-                          {msg.senderName?.[0]?.toUpperCase()}
-                        </div>
+                        <img 
+                          src={activeRoom.profilePic} 
+                          alt={msg.senderName}
+                          className="w-7 h-7 rounded-full object-cover border border-border flex-shrink-0"
+                          onError={(e) => {
+                            e.target.onerror = null;
+                            e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName || 'User'}`;
+                          }}
+                        />
                       )}
                       <div>
-                        <div className={`p-3 rounded-2xl text-sm ${isOwn ? 'bg-primary text-primary-foreground rounded-tr-none' : 'bg-card text-foreground border border-border rounded-tl-none'}`}>
+                        <div className={`p-3 rounded-2xl text-sm ${
+                          isOwn 
+                            ? user?.role?.toLowerCase() === 'client'
+                              ? 'bg-indigo-600 text-white rounded-tr-none'
+                              : 'bg-emerald-600 text-white rounded-tr-none'
+                            : user?.role?.toLowerCase() === 'client'
+                              ? 'bg-emerald-600/10 text-foreground border border-emerald-500/20 rounded-tl-none'
+                              : 'bg-indigo-600/10 text-foreground border border-indigo-500/20 rounded-tl-none'
+                        }`}>
                           {msg.text}
                         </div>
                         <span className={`text-[10px] text-muted-foreground mt-1 block ${isOwn ? 'text-right' : ''}`}>
@@ -188,7 +225,15 @@ const Messages = () => {
             }
             {isTyping && (
               <div className="flex gap-3 max-w-[78%]">
-                <div className="w-7 h-7 bg-primary rounded-full flex-shrink-0 flex items-center justify-center text-[11px] font-bold text-primary-foreground">{activeRoom.name?.[0]?.toUpperCase()}</div>
+                <img 
+                  src={activeRoom.profilePic} 
+                  alt={activeRoom.name}
+                  className="w-7 h-7 rounded-full object-cover border border-border flex-shrink-0"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${activeRoom.name}`;
+                  }}
+                />
                 <div className="bg-card border border-border px-4 py-3 rounded-2xl rounded-tl-none flex items-center gap-1">
                   {[0, 150, 300].map((d) => <span key={d} className="w-1.5 h-1.5 bg-muted-foreground rounded-full animate-bounce" style={{ animationDelay: `${d}ms` }} />)}
                 </div>

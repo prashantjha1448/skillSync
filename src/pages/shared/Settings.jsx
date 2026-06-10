@@ -3,11 +3,12 @@ import { useForm } from 'react-hook-form';
 import { 
   Save, User, Lock, Bell, Loader2, Camera, ShieldCheck, 
   AlertTriangle, CheckCircle2, ChevronRight, HelpCircle, 
-  Mail, MessageSquare, ExternalLink
+  Mail, MessageSquare, ExternalLink, Home
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useProfile } from '../../hooks/useProfile';
 import { useSelector, useDispatch } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { loginSuccess } from '../../actions/authSlice';
 import api from '../../services/api';
 
@@ -20,6 +21,7 @@ const TABS = [
 ];
 
 const Settings = () => {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { user, token } = useSelector((s) => s.auth);
   const [activeTab, setActiveTab] = useState('profile');
@@ -128,9 +130,16 @@ const Settings = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12 bg-background transition-colors duration-300">
-      <div className="mb-8">
-        <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Account Settings</h1>
-        <p className="text-muted-foreground mt-2 text-sm max-w-2xl">Manage your account settings, verify your identity, and set up your security preferences.</p>
+      <div className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-extrabold tracking-tight text-foreground">Account Settings</h1>
+          <p className="text-muted-foreground mt-2 text-sm max-w-2xl">Manage your account settings, verify your identity, and set up your security preferences.</p>
+        </div>
+        <button onClick={() => navigate(user?.role?.toLowerCase() === 'client' ? '/client/dashboard' : '/freelancer/dashboard')} 
+          className="self-start sm:self-center flex items-center gap-2 bg-accent/40 border border-border hover:bg-accent px-4 py-2.5 rounded-xl text-sm font-semibold transition-all">
+          <Home className="w-4 h-4 text-primary" />
+          <span>Home</span>
+        </button>
       </div>
 
       {!kycStatus && activeTab !== 'kyc' && (

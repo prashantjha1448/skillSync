@@ -80,7 +80,7 @@ const ClientDashboard = () => {
 
         {/* Stats Grid */}
         {isLoading ? (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-8">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="bg-card border border-border p-5 rounded-2xl shadow-sm animate-pulse">
                 <div className="h-4 bg-muted rounded w-2/3 mb-3" />
@@ -89,18 +89,27 @@ const ClientDashboard = () => {
             ))}
           </div>
         ) : (
-          <div className="grid grid-cols-2 lg:grid-cols-5 gap-5 mb-8">
-            {stats.map(({ label, value, icon: Icon, color }) => (
-              <div key={label} className="bg-card border border-border p-5 rounded-2xl shadow-sm flex items-center justify-between">
-                <div>
-                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
-                  <h3 className="text-2xl font-black text-foreground mt-1">{value}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-5 mb-8">
+            {stats.map(({ label, value, icon: Icon, color }) => {
+              const colorMap = {
+                amber: 'bg-amber-500/10 text-amber-500 dark:bg-amber-500/20 dark:text-amber-400',
+                indigo: 'bg-indigo-500/10 text-indigo-500 dark:bg-indigo-500/20 dark:text-indigo-400',
+                primary: 'bg-primary/10 text-primary dark:bg-primary/20 dark:text-primary-foreground',
+                emerald: 'bg-emerald-500/10 text-emerald-500 dark:bg-emerald-500/20 dark:text-emerald-400',
+                blue: 'bg-blue-500/10 text-blue-500 dark:bg-blue-500/20 dark:text-blue-400',
+              };
+              return (
+                <div key={label} className="bg-card border border-border p-5 rounded-2xl shadow-sm flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">{label}</p>
+                    <h3 className="text-2xl font-black text-foreground mt-1">{value}</h3>
+                  </div>
+                  <div className={`p-3 rounded-xl ${colorMap[color] || 'bg-muted text-muted-foreground'}`}>
+                    <Icon size={20} />
+                  </div>
                 </div>
-                <div className={`p-3 bg-${color}-500/10 text-${color}-500 rounded-xl`}>
-                  <Icon size={20} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
 

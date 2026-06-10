@@ -76,7 +76,7 @@ const Discover = () => {
         ...(debouncedKeyword.trim() && { keyword: debouncedKeyword.trim() }),
         ...(category !== 'All' && { category: category.toLowerCase() }),
       };
-      const endpoint = debouncedKeyword.trim() ? '/jobs/search' : '/jobs';
+      const endpoint = (debouncedKeyword.trim() || category !== 'All') ? '/jobs/search' : '/jobs';
       const { data } = await api.get(endpoint, { params });
       return Array.isArray(data) ? data : (data?.jobs ?? data?.data ?? []);
     },
