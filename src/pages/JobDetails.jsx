@@ -83,6 +83,26 @@ const JobDetails = () => {
     onError: (err) => toast.error(err?.response?.data?.message || 'Failed to reject proposal.'),
   });
 
+  // Complete job mutation
+  const completeMutation = useMutation({
+    mutationFn: () => api.put(`/jobs/${id}/complete`),
+    onSuccess: (res) => {
+      toast.success(res.data?.message || 'Completion request registered! 🎉');
+      qc.invalidateQueries({ queryKey: ['job', id] });
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to complete job.'),
+  });
+
+  // Cancel job mutation
+  const cancelMutation = useMutation({
+    mutationFn: () => api.put(`/jobs/${id}/cancel`),
+    onSuccess: (res) => {
+      toast.success(res.data?.message || 'Cancellation request registered! 🚫');
+      qc.invalidateQueries({ queryKey: ['job', id] });
+    },
+    onError: (err) => toast.error(err?.response?.data?.message || 'Failed to cancel job.'),
+  });
+
   const handleProposal = (e) => {
     e.preventDefault();
     if (!isAuthenticated) { navigate('/auth'); return; }
@@ -136,8 +156,150 @@ const JobDetails = () => {
               <span className="text-xs text-muted-foreground/70">({timeAgo(job.createdAt)})</span>
             </span>
             {proposals.length > 0 && <span className="flex items-center gap-2"><Users className="w-4 h-4" /> {proposals.length} proposals</span>}
+            {job.clientInfo && (
+              <span className="flex items-center gap-1">
+                <User2 className="w-3.5 h-3.5 text-primary" />
+                by
+                <button
+                  onClick={() => navigate(`/freelancer/${job.client}`)}
+                  className="font-bold text-primary hover:underline cursor-pointer"
+                >
+                  {job.clientInfo.name} (@{job.clientInfo.username || 'client'})
+                </button>
+              </span>
+            )}
           </div>
         </div>
+
+        {/* Contract Status Card */}
+        {job.status !== 'open' && (
+          <div className="bg-card border border-border rounded-3xl p-6 relative overflow-hidden shadow-sm">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-5 h-5 text-primary" />
+                  <h2 className="text-xl font-bold text-foreground">
+                    {job.status === 'in-progress' ? 'Active Job Agreement' :
+                     job.status === 'completed' ? 'Contract Completed' : 'Contract Cancelled'}
+                  </h2>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Budget in Escrow: <span className="font-extrabold text-emerald-600 dark:text-emerald-400">₹{job.budget?.toLocaleString('en-IN') || 0}</span>
+                </p>
+                {job.status === 'in-progress' && (
+                  <div className="flex flex-wrap gap-4 pt-2 text-xs font-semibold">
+                    <span className="flex items-center gap-1.5 text-foreground/80">
+                      Freelancer: {job.completionRequestedByFreelancer ? (
+                        <span className="text-emerald-500 font-bold">Approved ✓</span>
+                      ) : (
+                        <span className="text-muted-foreground">Pending</span>
+                      )}
+                    </span>
+                    <span className="flex items-center gap-1.5 text-foreground/80">
+                      Client: {job.completionRequestedByClient ? (
+                        <span className="text-emerald-500 font-bold">Approved ✓</span>
+                      ) : (
+                        <span className="text-muted-foreground">Pending</span>
+                      )}
+                    </span>
+                  </div>
+                )}
+                {(job.cancellationRequestedByClient || job.cancellationRequestedByFreelancer) && job.status === 'in-progress' && (
+                  <div className="flex flex-wrap gap-4 pt-1 text-xs font-semibold text-red-500">
+                    <span className="flex items-center gap-1">
+                      Cancellation Requests — Client: {job.cancellationRequestedByClient ? 'Yes' : 'No'}, Freelancer: {job.cancellationRequestedByFreelancer ? 'Yes' : 'No'}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-wrap gap-3 w-full md:w-auto">
+                {job.status === 'in-progress' && (
+                  <>
+                    {/* Freelancer Actions */}
+                    {job.assignedTo === user?.id && (
+                      <>
+                        {!job.completionRequestedByFreelancer ? (
+                          <button
+                            onClick={() => completeMutation.mutate()}
+                            disabled={completeMutation.isPending}
+                            className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-5 py-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {job.completionRequestedByClient ? 'Approve Completion' : 'Mark as Completed'}
+                          </button>
+                        ) : (
+                          <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                            Awaiting Client Approval
+                          </span>
+                        )}
+
+                        {!job.cancellationRequestedByFreelancer ? (
+                          <button
+                            onClick={() => cancelMutation.mutate()}
+                            disabled={cancelMutation.isPending}
+                            className="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-bold px-5 py-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {job.cancellationRequestedByClient ? 'Approve Cancellation' : 'Request Cancellation'}
+                          </button>
+                        ) : (
+                          <span className="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                            Awaiting Client Cancellation
+                          </span>
+                        )}
+                      </>
+                    )}
+
+                    {/* Client Actions */}
+                    {job.client === user?.id && (
+                      <>
+                        {!job.completionRequestedByClient ? (
+                          <button
+                            onClick={() => completeMutation.mutate()}
+                            disabled={completeMutation.isPending}
+                            className="flex-1 md:flex-none bg-emerald-600 hover:bg-emerald-750 text-white font-bold px-5 py-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {job.completionRequestedByFreelancer ? 'Approve Completion & Release Escrow' : 'Request Completion'}
+                          </button>
+                        ) : (
+                          <span className="bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                            Awaiting Freelancer Approval
+                          </span>
+                        )}
+
+                        {!job.cancellationRequestedByClient ? (
+                          <button
+                            onClick={() => cancelMutation.mutate()}
+                            disabled={cancelMutation.isPending}
+                            className="flex-1 md:flex-none bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/20 font-bold px-5 py-3 rounded-xl text-xs transition-colors cursor-pointer disabled:opacity-50"
+                          >
+                            {job.cancellationRequestedByFreelancer ? 'Approve Cancellation & Refund' : 'Request Cancellation'}
+                          </button>
+                        ) : (
+                          <span className="bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                            Awaiting Freelancer Cancellation
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </>
+                )}
+
+                {job.status === 'completed' && (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                    <CheckCircle2 className="w-4 h-4" /> Funds Released to Freelancer Wallet
+                  </div>
+                )}
+
+                {job.status === 'cancelled' && (
+                  <div className="flex items-center gap-2 bg-red-500/10 text-red-500 border border-red-500/20 px-4 py-2.5 rounded-xl font-bold text-xs">
+                    <XCircle className="w-4 h-4" /> Escrow Budget Refunded to Client Wallet
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Content Grid */}
         <div className="grid md:grid-cols-3 gap-6">
@@ -358,6 +520,34 @@ const JobDetails = () => {
                 <ShieldCheck className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" /> Secure Escrow Payment
               </div>
             </div>
+
+            {/* About the Client Card */}
+            {(!isJobOwner && job.clientInfo) && (
+              <div className="bg-card border border-border rounded-3xl p-6 shadow-sm">
+                <h3 className="text-xs font-bold text-muted-foreground uppercase tracking-widest mb-4">About the Client</h3>
+                <div className="flex items-center gap-3 mb-4">
+                  <img
+                    src={job.clientInfo.profilePic}
+                    alt={job.clientInfo.name}
+                    className="w-10 h-10 rounded-full object-cover border border-border flex-shrink-0"
+                    onError={(e) => {
+                      e.target.onerror = null;
+                      e.target.src = `https://api.dicebear.com/7.x/avataaars/svg?seed=${job.clientInfo.name}`;
+                    }}
+                  />
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-foreground text-sm truncate">{job.clientInfo.name}</h4>
+                    <p className="text-xs text-primary truncate">@{job.clientInfo.username || 'client'}</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => navigate(`/freelancer/${job.client}`)}
+                  className="w-full bg-accent/40 hover:bg-accent border border-border text-foreground font-semibold py-2.5 rounded-xl text-xs transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <User2 className="w-3.5 h-3.5" /> View Client Profile
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

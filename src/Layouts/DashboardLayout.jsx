@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { Outlet, Link, NavLink, useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/api';
 import {
   LogOut, MapPin, LayoutDashboard, MessageSquare,
-  Wallet, Settings, User, TrendingUp, PlusCircle, Menu, X
+  Wallet, Settings, User, TrendingUp, PlusCircle, Menu, X, Briefcase
 } from 'lucide-react';
 import { logout } from '../actions/authSlice';
 import Notifications from '../components/Notifications';
@@ -12,11 +14,12 @@ import Logo from '../components/Logo';
 // Routes must match App.jsx routing tree exactly
 const clientNav = [
   { to: '/client/dashboard',    icon: LayoutDashboard, label: 'Dashboard' },
-  { to: '/client/post-job',     icon: PlusCircle,      label: 'Post a Job' },
+  { to: '/client/jobs',         icon: Briefcase,       label: 'Jobs Posted' },
   { to: '/shared/messages',     icon: MessageSquare,   label: 'Messages' },
   { to: '/shared/wallet',       icon: Wallet,          label: 'Wallet' },
   { to: '/shared/settings',     icon: Settings,        label: 'Settings' },
 ];
+
 
 const freelancerNav = [
   { to: '/freelancer/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -32,6 +35,16 @@ const SidebarContent = ({ role, onClose }) => {
   const dispatch = useDispatch();
   const { user } = useSelector((s) => s.auth);
   const nav = role?.toUpperCase() === 'CLIENT' ? clientNav : freelancerNav;
+
+  // Fetch unread messages count
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => api.get('/messages/conversations').then((r) => r.data?.conversations ?? r.data ?? []),
+    enabled: !!user,
+    refetchInterval: 15000,
+  });
+
+  const unreadMessagesCount = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   const handleLogout = () => {
     dispatch(logout());
@@ -66,16 +79,27 @@ const SidebarContent = ({ role, onClose }) => {
       </div>
 
       <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
-        {nav.map(({ to, icon: Icon, label }) => (
-          <NavLink key={to} to={to} onClick={onClose}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-3 rounded-xl font-medium text-sm transition-colors ${
-                isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
-              }`
-            }>
-            <Icon className="w-5 h-5 shrink-0" />{label}
-          </NavLink>
-        ))}
+        {nav.map(({ to, icon: Icon, label }) => {
+          const isMessages = to === '/shared/messages';
+          return (
+            <NavLink key={to} to={to} onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center justify-between px-3 py-3 rounded-xl font-medium text-sm transition-colors ${
+                  isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/60'
+                }`
+              }>
+              <div className="flex items-center gap-3">
+                <Icon className="w-5 h-5 shrink-0" />
+                <span>{label}</span>
+              </div>
+              {isMessages && unreadMessagesCount > 0 && (
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white shadow-sm shrink-0">
+                  {unreadMessagesCount}
+                </span>
+              )}
+            </NavLink>
+          );
+        })}
       </nav>
 
       <div className="p-4 border-t border-border">

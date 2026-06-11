@@ -1,12 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { useQuery } from '@tanstack/react-query';
+import api from '../services/api';
 import {
   MapPin, Sun, Moon, MessageSquare, Compass,
   ChevronDown, Crosshair, MapPinned, Search, Loader2, PlusCircle, Wallet, Home
 } from 'lucide-react';
 import ProfileDropdown from './ui/ProfileDropdown';
 import Logo from './Logo';
+import Notifications from './Notifications';
 import { updateLocalClientLocation } from '../actions/clientSlice';
 import { fetchNearbyJobs } from '../actions/freelancerSlice';
 import { useTheme } from '../context/ThemeContext';
@@ -26,6 +29,16 @@ const Navbar = () => {
   const [locLoading, setLocLoading] = useState(false);
   const [pincodeInput, setPincodeInput] = useState('');
   const [manualCityInput, setManualCityInput] = useState('');
+
+  // Fetch unread messages count
+  const { data: conversations = [] } = useQuery({
+    queryKey: ['conversations'],
+    queryFn: () => api.get('/messages/conversations').then((r) => r.data?.conversations ?? r.data ?? []),
+    enabled: !!user,
+    refetchInterval: 15000,
+  });
+
+  const unreadMessagesCount = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
 
   useEffect(() => {
     const handler = (e) => {
@@ -163,8 +176,14 @@ const Navbar = () => {
           <NavLink to="/discover" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
             <Compass size={16} /><span>Discover</span>
           </NavLink>
-          <NavLink to="/shared/messages" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
-            <MessageSquare size={16} /><span>Messages</span>
+          <NavLink to="/shared/messages" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all relative ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
+            <MessageSquare size={16} />
+            <span>Messages</span>
+            {unreadMessagesCount > 0 && (
+              <span className="absolute -top-1 -right-1 flex h-4.5 w-4.5 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm border border-card">
+                {unreadMessagesCount}
+              </span>
+            )}
           </NavLink>
           {user?.role?.toLowerCase() === 'client' ? (
             <NavLink to="/client/post-job" className={({ isActive }) => `flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${isActive ? 'bg-card text-foreground shadow-md border border-border' : 'text-muted-foreground hover:text-foreground'}`}>
@@ -179,6 +198,7 @@ const Navbar = () => {
 
         {/* RIGHT: Theme + Profile */}
         <div className="flex items-center gap-3.5">
+          {user && <Notifications />}
           <button onClick={toggleTheme}
             className="p-2.5 bg-accent/40 border border-border hover:bg-accent rounded-xl text-muted-foreground hover:text-foreground transition-all active:scale-95">
             {theme === 'dark' ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} className="text-primary" />}

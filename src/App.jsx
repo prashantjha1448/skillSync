@@ -23,6 +23,7 @@ import Wallet from './pages/shared/Wallet';
 // Client Pages
 import DashboardLayout from './Layouts/DashboardLayout';
 import PostJob from './pages/client/PostJob';
+import ClientJobs from './pages/client/ClientJobs';
 
 // Freelancer Pages
 import FreelancerDashboard from './pages/freelancer/Dashboard';
@@ -81,6 +82,7 @@ const router = createBrowserRouter([
       { path: 'shared/settings', loader: authLoader, element: <Settings /> },
       { path: 'shared/wallet',   loader: authLoader, element: <Wallet /> },
       { path: 'freelancer/earnings', loader: freelancerLoader, element: <Earnings /> },
+      { path: 'client/post-job', loader: clientLoader, element: <PostJob /> },
     ],
   },
 
@@ -96,7 +98,7 @@ const router = createBrowserRouter([
     loader: clientLoader,
     children: [
       { path: 'dashboard', element: <ClientDashboard /> },
-      { path: 'post-job',  element: <PostJob /> },
+      { path: 'jobs',      element: <ClientJobs /> },
     ],
   },
 

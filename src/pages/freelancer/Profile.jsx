@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
-import { MapPin, Star, Edit3, Moon, Sun, Camera, Loader2, X, Save, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { MapPin, Star, Edit3, Moon, Sun, Camera, Loader2, X, Save, ShieldCheck, ShieldX, AlertTriangle } from 'lucide-react';
 import { useForm } from 'react-hook-form';
 import { useProfile } from '../../hooks/useProfile';
 import { useTheme } from '../../context/ThemeContext';
@@ -30,6 +30,16 @@ const FreelancerProfile = () => {
       });
     }
   }, [profile, isEditing, reset]);
+
+  // Sync kycVerified from fresh profile data into Redux (so Navbar badge stays accurate)
+  useEffect(() => {
+    if (profile && token) {
+      const kycDone = !!(profile.kycVerified || (profile.kyc?.aadharVerified && profile.kyc?.panVerified));
+      if (kycDone !== user?.kycVerified) {
+        dispatch(loginSuccess({ user: { ...user, kycVerified: kycDone, isVerified: kycDone }, token }));
+      }
+    }
+  }, [profile]);
 
   const handlePhotoChange = (e) => {
     const file = e.target.files?.[0];
@@ -68,6 +78,8 @@ const FreelancerProfile = () => {
     : (displayProfile?.skills || '').split(',').map((s) => s.trim()).filter(Boolean);
 
   const kycStatus = displayProfile?.kyc?.status;
+  // Compute live from kyc fields (Aadhaar + PAN = fully verified) — kycVerified is the dedicated flag
+  const isKycVerified = !!(displayProfile?.kycVerified || (displayProfile?.kyc?.aadharVerified && displayProfile?.kyc?.panVerified));
 
   if (isLoading) return (
     <div className="min-h-screen bg-background flex items-center justify-center">
@@ -123,12 +135,33 @@ const FreelancerProfile = () => {
                   {isUploading ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
                   <input type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
                 </label>
+                {/* KYC verification badge on avatar */}
+                <div
+                  title={isKycVerified ? 'KYC Verified — Aadhaar & PAN verified' : 'KYC incomplete — complete Aadhaar & PAN'}
+                  className={`absolute -top-1 -right-1 flex items-center justify-center w-8 h-8 rounded-full shadow-md border-2 border-card z-10 ${
+                    isKycVerified ? 'bg-emerald-500' : 'bg-red-500'
+                  }`}
+                >
+                  {isKycVerified
+                    ? <ShieldCheck className="w-4 h-4 text-white" />
+                    : <ShieldX className="w-4 h-4 text-white" />
+                  }
+                </div>
               </div>
 
               <div className="text-center md:text-left mb-2">
-                <h1 className="text-3xl font-bold tracking-tight">
+                <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
                   {displayProfile?.name || 'Your Name'}
-                  {kycStatus === 'approved' && <span className="text-blue-500 ml-2 text-2xl">✓</span>}
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shrink-0 ${
+                    isKycVerified
+                      ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30'
+                      : 'bg-red-500/10 text-red-500 border-red-500/30'
+                  }`}>
+                    {isKycVerified
+                      ? <><ShieldCheck className="w-3 h-3" /> Verified</>
+                      : <><ShieldX className="w-3 h-3" /> Not Verified</>
+                    }
+                  </span>
                 </h1>
                 {displayProfile?.role !== 'CLIENT' && (
                   <p className="text-lg text-muted-foreground font-medium">{displayProfile?.title || 'Freelancer'}</p>
@@ -162,6 +195,18 @@ const FreelancerProfile = () => {
                         {s}
                       </span>
                     ))}
+                  </div>
+                )}
+                {/* KYC verification status banner */}
+                {isKycVerified ? (
+                  <div className="flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 py-2 text-xs font-semibold mt-2">
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
+                    KYC Verified — Aadhaar &amp; PAN confirmed ✓
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl px-3 py-2 text-xs font-semibold mt-2">
+                    <ShieldX className="w-4 h-4 shrink-0" />
+                    KYC incomplete — <a href="/shared/settings" className="underline font-bold">Complete Verification →</a>
                   </div>
                 )}
               </div>

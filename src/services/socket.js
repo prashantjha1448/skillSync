@@ -6,7 +6,12 @@ class SocketService {
   socket = null;
 
   connect(token) {
-    if (this.socket?.connected) return this.socket;
+    if (this.socket) {
+      if (this.socket.auth?.token === token && this.socket.connected) {
+        return this.socket;
+      }
+      this.socket.disconnect();
+    }
     this.socket = io(SOCKET_URL, { auth: { token }, transports: ['websocket'], reconnection: true });
     return this.socket;
   }

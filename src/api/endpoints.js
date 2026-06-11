@@ -57,8 +57,10 @@ export const notificationsApi = {
 export const walletApi = {
   balance:      ()  => api.get('/wallet/balance'),
   withdraw:     (d) => api.post('/wallet/withdraw', d),
+  verifyPin:    (d) => api.post('/wallet/verify-pin', d),
   transactions: (p) => api.get('/payments/transactions', { params: p }),
 };
+
 
 export const analyticsApi = {
   freelancerRevenue: () => api.get('/analytics/freelancer-revenue'),
@@ -77,8 +79,9 @@ export const transactionsApi = {
 };
 
 export const kycApi = {
-  sendOtp:   (d) => api.post('/kyc/send-otp', d),
+  sendOtp:   (f) => api.post('/kyc/send-otp', f, { headers: { 'Content-Type': 'multipart/form-data' } }),
   verifyOtp: (d) => api.post('/kyc/verify-otp', d),
+  addPan:    (f) => api.post('/kyc/pan', f, { headers: { 'Content-Type': 'multipart/form-data' } }),
   addBank:   (d) => api.post('/kyc/bank', d),
 };
 

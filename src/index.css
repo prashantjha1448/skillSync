@@ -60,3 +60,28 @@ html, body, #root {
   color: hsl(var(--foreground)) !important;
   transition: background-color 300ms ease, border-color 300ms ease;
 }
+
+/* ─── Skills Marquee (Right → Left ticker) ─── */
+@keyframes marquee-rtl {
+  0%   { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
+}
+
+.skills-marquee {
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%);
+}
+
+.skills-track {
+  display: flex;
+  gap: 0.375rem;
+  width: max-content;
+  animation: marquee-rtl 14s linear infinite;
+}
+
+.skills-track:hover {
+  animation-play-state: paused;
+}

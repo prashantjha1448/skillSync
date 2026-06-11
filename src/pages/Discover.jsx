@@ -1,5 +1,5 @@
 import React, { useState, useCallback } from 'react';
-import { Search, MapPin, SlidersHorizontal, Map, List, Loader2, RefreshCw, ChevronDown, X, Calendar, IndianRupee } from 'lucide-react';
+import { Search, MapPin, SlidersHorizontal, Map, List, Loader2, RefreshCw, ChevronDown, X, Calendar, IndianRupee, Star } from 'lucide-react';
 import JobMap from '../components/JobMap';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -114,6 +114,8 @@ const Discover = () => {
         location: item.location?.coordinates ? { coordinates: item.location.coordinates } : undefined,
         address: item.location?.address || item.location?.city || 'Local',
         profilePic: item.profilePic || item.avatar,
+        rating: item.averageRating || 0,
+        isVerified: !!(item.kycVerified || item.isVerified),
       };
     } else {
       return {
@@ -130,6 +132,7 @@ const Discover = () => {
         location: item.location?.coordinates ? { coordinates: item.location.coordinates } : undefined,
         address: item.location?.address,
         budgetRange: item.budgetRange,
+        clientInfo: item.clientInfo,
       };
     }
   });
@@ -289,9 +292,26 @@ const Discover = () => {
                   isClient ? (
                     // Freelancer Card
                     <div key={item.id} onClick={() => navigate(`/freelancer/${item.id}`)}
-                      className="bg-card border border-border rounded-2xl p-5 hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col justify-between">
-                      <div>
-                        {/* Avatar & Info */}
+                      className="bg-card border border-border rounded-2xl overflow-hidden hover:border-primary/50 hover:shadow-xl hover:shadow-primary/5 transition-all cursor-pointer group flex flex-col justify-between">
+
+                      {/* ── Skills Marquee Strip (top of card) ── */}
+                      {item.skills.length > 0 && (
+                        <div className="skills-marquee bg-primary/5 border-b border-primary/10 py-1.5 overflow-hidden">
+                          <div className="skills-track flex gap-2 animate-marquee">
+                            {[...item.skills, ...item.skills].map((s, idx) => (
+                              <span
+                                key={idx}
+                                className="bg-primary/10 text-primary border border-primary/20 text-[10px] px-2 py-0.5 rounded-md font-semibold whitespace-nowrap shrink-0"
+                              >
+                                {s}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="p-5 flex flex-col flex-1">
+                        {/* Avatar & Top Info */}
                         <div className="flex items-start gap-3.5 mb-4">
                           <img
                             src={item.profilePic || `https://api.dicebear.com/7.x/avataaars/svg?seed=${item.title}`}
@@ -303,47 +323,62 @@ const Discover = () => {
                             }}
                           />
                           <div className="min-w-0 flex-1">
+                            {/* 1. Username + Verification tag */}
                             <div className="flex items-center gap-1.5 flex-wrap">
-                              <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors">
-                                {item.title}
-                              </h3>
-                              {item.username && (
-                                <span className="text-[9px] bg-primary/10 text-primary border border-primary/20 px-2 py-0.5 rounded-md font-extrabold">
-                                  @{item.username}
-                                </span>
-                              )}
+                              <span className="text-xs text-primary font-extrabold truncate">
+                                @{item.username || 'freelancer'}
+                              </span>
+                              <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                                item.isVerified
+                                  ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20'
+                                  : 'bg-red-500/10 text-red-500 border-red-500/20'
+                              }`}>
+                                {item.isVerified ? 'Verified' : 'Not Verified'}
+                              </span>
                             </div>
+                            
+                            {/* 2. Name */}
+                            <h3 className="font-bold text-foreground text-sm truncate group-hover:text-primary transition-colors mt-0.5">
+                              {item.title}
+                            </h3>
+
+                            {/* 3. Category */}
                             <p className="text-xs text-muted-foreground font-semibold mt-0.5 truncate">{item.category}</p>
                           </div>
                         </div>
 
-                        {/* Description */}
-                        <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed">
+                        {/* 4. Rating Number & Stars (Under info) */}
+                        <div className="flex items-center gap-1 mt-1 mb-3">
+                          <div className="flex items-center gap-0.5">
+                            {[...Array(5)].map((_, i) => (
+                              <Star
+                                key={i}
+                                className={`w-3.5 h-3.5 ${
+                                  i < Math.round(item.rating)
+                                    ? 'fill-amber-400 text-amber-400'
+                                    : 'text-muted-foreground/30'
+                                }`}
+                              />
+                            ))}
+                          </div>
+                          <span className="text-xs font-bold text-foreground/80 ml-1">{Number(item.rating || 0).toFixed(1)}</span>
+                        </div>
+
+                        {/* 5. Bio */}
+                        <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed flex-1">
                           {item.desc}
                         </p>
-
-                        {/* Skills */}
-                        {item.skills.length > 0 && (
-                          <div className="flex flex-wrap gap-1.5 mb-3">
-                            {item.skills.slice(0, 3).map((s) => (
-                              <span key={s} className="bg-muted text-muted-foreground text-xs px-2 py-0.5 rounded-md">{s}</span>
-                            ))}
-                            {item.skills.length > 3 && (
-                              <span className="text-xs text-muted-foreground">+{item.skills.length - 3}</span>
-                            )}
-                          </div>
-                        )}
                       </div>
 
                       {/* Footer */}
-                      <div className="pt-3 mt-auto border-t border-border/60 flex items-center justify-between">
+                      <div className="px-5 pb-4 pt-3 border-t border-border/60 flex items-center justify-between">
                         <div>
                           <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400">
                             {item.budget}
                           </span>
                         </div>
                         <div className="flex flex-col items-end gap-0.5">
-                          <div className="flex items-center gap-1 text-muted-foreground text-xs">
+                          <div className="flex items-center gap-1 text-muted-foreground text-xs font-medium">
                             <MapPin className="w-3 h-3" /> {item.distance}
                           </div>
                         </div>
@@ -368,9 +403,32 @@ const Discover = () => {
                       </div>
 
                       {/* Title */}
-                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors mb-2 line-clamp-2 leading-snug">
+                      <h3 className="text-base font-bold text-foreground group-hover:text-primary transition-colors mb-1 line-clamp-2 leading-snug">
                         {item.title}
                       </h3>
+
+                      {/* Client Info */}
+                      {item.clientInfo && (
+                        <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mb-3 flex-wrap">
+                          <span>by</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/freelancer/${item.clientInfo.id}`);
+                            }}
+                            className="font-bold text-primary hover:underline cursor-pointer"
+                          >
+                            {item.clientInfo.name} (@{item.clientInfo.username || 'client'})
+                          </button>
+                          <span className={`text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded border shrink-0 ${
+                            item.clientInfo.isVerified
+                              ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20'
+                              : 'bg-red-500/10 text-red-500 border-red-500/20'
+                          }`}>
+                            {item.clientInfo.isVerified ? 'Verified' : 'Not Verified'}
+                          </span>
+                        </div>
+                      )}
 
                       {/* Description */}
                       <p className="text-muted-foreground text-sm line-clamp-2 mb-3 leading-relaxed flex-1">

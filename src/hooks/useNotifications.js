@@ -9,7 +9,7 @@ export const useNotifications = () => {
     queryKey: ['notifications'],
     queryFn: async () => {
       const response = await notificationsApi.getAll();
-      return getApiData(response) || { notifications: [], unreadCount: 0 };
+      return response.data || { notifications: [], unreadCount: 0 };
     },
     refetchInterval: 30_000,
   });

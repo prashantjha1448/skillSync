@@ -2,7 +2,7 @@ import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  ChevronLeft, MapPin, Star, ShieldCheck, Briefcase, Clock, Mail, Phone, Calendar,
+  ChevronLeft, MapPin, Star, ShieldCheck, ShieldX, Briefcase, Clock, Mail, Phone, Calendar,
   Loader2, CheckCircle2, XCircle, AlertTriangle, MessageSquare, ExternalLink, User2,
 } from 'lucide-react';
 import api from '../services/api';
@@ -49,6 +49,10 @@ const FreelancerPublicProfile = () => {
   const v = profile.verifications || {};
   const stats = profile.stats || {};
 
+  // Compute KYC verification status — kycVerified = Aadhaar + PAN only (not email)
+  const isKycVerified = !!(profile.kycVerified || profile.isVerified || (profile.kyc?.aadharVerified && profile.kyc?.panVerified));
+  const kycStatus = profile.kyc?.status || 'not_submitted';
+
   return (
     <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
       <div className="max-w-4xl mx-auto px-6 py-8">
@@ -60,7 +64,18 @@ const FreelancerPublicProfile = () => {
         <div className="bg-card border border-border rounded-3xl overflow-hidden shadow-sm">
           {/* Cover Gradient */}
           <div className="h-36 bg-gradient-to-r from-primary via-purple-500 to-pink-500 relative">
-            {/* Active status */}
+            {/* Verification Badge — top left on cover */}
+            <div className={`absolute top-4 left-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-md border ${
+              isKycVerified
+                ? 'bg-emerald-500/25 text-emerald-100 border-emerald-400/40'
+                : 'bg-red-500/25 text-red-100 border-red-400/40'
+            }`}>
+              {isKycVerified
+                ? <><ShieldCheck className="w-3.5 h-3.5" /> KYC Verified</>
+                : <><ShieldX className="w-3.5 h-3.5" /> Not Verified</>
+              }
+            </div>
+            {/* Active status — top right */}
             <div className={`absolute top-4 right-4 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold backdrop-blur-md ${
               profile.isActive
                 ? 'bg-emerald-500/20 text-emerald-100 border border-emerald-400/30'
@@ -74,8 +89,8 @@ const FreelancerPublicProfile = () => {
           {/* Profile Info */}
           <div className="px-8 pb-8 -mt-14">
             <div className="flex flex-col md:flex-row gap-6 items-start">
-              {/* Avatar */}
-              <div className="relative">
+              {/* Avatar + pinned KYC badge */}
+              <div className="relative shrink-0">
                 {profile.profilePic ? (
                   <img src={profile.profilePic} alt={profile.name}
                     className="w-28 h-28 rounded-2xl border-4 border-card object-cover shadow-xl" />
@@ -84,19 +99,39 @@ const FreelancerPublicProfile = () => {
                     {profile.name?.[0]?.toUpperCase() || 'U'}
                   </div>
                 )}
-                {v.kycStatus === 'approved' && (
-                  <div className="absolute -bottom-1 -right-1 bg-blue-500 p-1 rounded-lg shadow-md" title="KYC Verified">
-                    <ShieldCheck className="w-4 h-4 text-white" />
-                  </div>
-                )}
+                {/* KYC shield badge pinned to avatar bottom-right */}
+                <div
+                  title={isKycVerified ? 'KYC Verified — Aadhaar & PAN verified' : 'KYC Incomplete — Aadhaar & PAN required'}
+                  className={`absolute -bottom-2 -right-2 flex items-center justify-center w-9 h-9 rounded-xl shadow-lg border-2 border-card ${
+                    isKycVerified ? 'bg-emerald-500' : 'bg-red-500'
+                  }`}
+                >
+                  {isKycVerified
+                    ? <ShieldCheck className="w-5 h-5 text-white" />
+                    : <ShieldX className="w-5 h-5 text-white" />
+                  }
+                </div>
               </div>
 
               {/* Name + Info */}
               <div className="flex-1 pt-4 md:pt-6">
-                <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
-                  {profile.name}
-                  {v.kycStatus === 'approved' && <span className="text-blue-500 ml-2 text-xl">✓</span>}
-                </h1>
+                {/* Name + inline verification badge */}
+                <div className="flex flex-wrap items-center gap-2 mb-1">
+                  <h1 className="text-2xl font-extrabold text-foreground tracking-tight">
+                    {profile.name}
+                  </h1>
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-full border shrink-0 ${
+                    isKycVerified
+                      ? 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/30'
+                      : 'bg-red-500/10 text-red-500 border-red-500/30'
+                  }`}>
+                    {isKycVerified
+                      ? <><ShieldCheck className="w-3 h-3" /> Verified</>
+                      : <><ShieldX className="w-3 h-3" /> Not Verified</>
+                    }
+                  </span>
+                </div>
+
                 <p className="text-muted-foreground font-medium text-lg">{profile.title || profile.role || 'Freelancer'}</p>
 
                 <div className="flex flex-wrap items-center gap-4 mt-3 text-sm text-muted-foreground">
@@ -127,6 +162,19 @@ const FreelancerPublicProfile = () => {
                     ))}
                   </div>
                 )}
+
+                {/* KYC Status Banner */}
+                {isKycVerified ? (
+                  <div className="mt-4 flex items-center gap-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 rounded-xl px-3 py-2 text-xs font-semibold">
+                    <ShieldCheck className="w-4 h-4 shrink-0" />
+                    KYC Verified — Aadhaar &amp; PAN confirmed ✓
+                  </div>
+                ) : (
+                  <div className="mt-4 flex items-center gap-2 bg-red-500/8 border border-red-500/20 text-red-500 rounded-xl px-3 py-2 text-xs font-semibold">
+                    <ShieldX className="w-4 h-4 shrink-0" />
+                    KYC not completed — Aadhaar &amp; PAN verification pending
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -146,28 +194,51 @@ const FreelancerPublicProfile = () => {
 
             {/* Stats */}
             <div className="bg-card border border-border rounded-2xl p-6">
-              <h2 className="text-base font-bold text-foreground mb-4 pb-3 border-b border-border">Work Stats</h2>
+              <h2 className="text-base font-bold text-foreground mb-4 pb-3 border-b border-border">
+                {profile.role === 'CLIENT' ? 'Platform Activity' : 'Work Stats'}
+              </h2>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                {[
-                  { label: 'Completed', value: stats.completedProjects ?? profile.earnings?.completedJobs ?? '0', icon: CheckCircle2, color: 'emerald' },
-                  { label: 'Active Projects', value: stats.activeProjects ?? '0', icon: Briefcase, color: 'blue' },
-                  { label: 'Total Proposals', value: stats.totalProposals ?? '0', icon: Clock, color: 'amber' },
-                  { label: 'Total Earned', value: profile.earnings?.allTimeIncome ? `₹${profile.earnings.allTimeIncome.toLocaleString('en-IN')}` : '₹0', icon: Star, color: 'indigo' },
-                ].map(({ label, value, icon: Icon, color }) => {
-                  const textColors = {
-                    emerald: 'text-emerald-500',
-                    blue: 'text-blue-500',
-                    amber: 'text-amber-500',
-                    indigo: 'text-indigo-500',
-                  };
-                  return (
-                    <div key={label} className="bg-background rounded-xl p-4 border border-border/60 text-center">
-                      <Icon className={`w-5 h-5 ${textColors[color] || 'text-muted-foreground'} mx-auto mb-2`} />
-                      <p className="text-xl font-extrabold text-foreground">{value}</p>
-                      <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mt-1">{label}</p>
-                    </div>
-                  );
-                })}
+                {profile.role === 'CLIENT' ? (
+                  [
+                    { label: 'Posted Jobs', value: stats.postedJobs ?? '0', icon: Briefcase, color: 'blue' },
+                    { label: 'Active Jobs', value: stats.activeJobs ?? '0', icon: Clock, color: 'amber' },
+                    { label: 'Completed Jobs', value: stats.completedJobs ?? '0', icon: CheckCircle2, color: 'emerald' },
+                  ].map(({ label, value, icon: Icon, color }) => {
+                    const textColors = {
+                      emerald: 'text-emerald-500',
+                      blue: 'text-blue-500',
+                      amber: 'text-amber-500',
+                    };
+                    return (
+                      <div key={label} className="bg-background rounded-xl p-4 border border-border/60 text-center">
+                        <Icon className={`w-5 h-5 ${textColors[color] || 'text-muted-foreground'} mx-auto mb-2`} />
+                        <p className="text-xl font-extrabold text-foreground">{value}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mt-1">{label}</p>
+                      </div>
+                    );
+                  })
+                ) : (
+                  [
+                    { label: 'Completed', value: stats.completedProjects ?? profile.earnings?.completedJobs ?? '0', icon: CheckCircle2, color: 'emerald' },
+                    { label: 'Active Projects', value: stats.activeProjects ?? '0', icon: Briefcase, color: 'blue' },
+                    { label: 'Total Proposals', value: stats.totalProposals ?? '0', icon: Clock, color: 'amber' },
+                    { label: 'Total Earned', value: profile.earnings?.allTimeIncome ? `₹${profile.earnings.allTimeIncome.toLocaleString('en-IN')}` : '₹0', icon: Star, color: 'indigo' },
+                  ].map(({ label, value, icon: Icon, color }) => {
+                    const textColors = {
+                      emerald: 'text-emerald-500',
+                      blue: 'text-blue-500',
+                      amber: 'text-amber-500',
+                      indigo: 'text-indigo-500',
+                    };
+                    return (
+                      <div key={label} className="bg-background rounded-xl p-4 border border-border/60 text-center">
+                        <Icon className={`w-5 h-5 ${textColors[color] || 'text-muted-foreground'} mx-auto mb-2`} />
+                        <p className="text-xl font-extrabold text-foreground">{value}</p>
+                        <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wide mt-1">{label}</p>
+                      </div>
+                    );
+                  })
+                )}
               </div>
             </div>
           </div>

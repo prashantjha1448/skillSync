@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Bell, CheckCircle, Loader2 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import { notificationsApi } from '../api/endpoints';
 
 const useNotifications = () => {
@@ -43,6 +45,8 @@ const formatDate = (dateStr) => {
 const Notifications = () => {
   const [isOpen, setIsOpen] = useState(false);
   const panelRef = useRef(null);
+  const navigate = useNavigate();
+  const { user } = useSelector((s) => s.auth);
   const { notifications, unreadCount, isLoading, markAllRead, markOneRead } = useNotifications();
 
   useEffect(() => {
@@ -53,27 +57,49 @@ const Notifications = () => {
     return () => document.removeEventListener('mousedown', handler);
   }, [isOpen]);
 
+  const handleNotificationClick = (n) => {
+    const isUnread = !(n.isRead || n.read);
+    if (isUnread) {
+      markOneRead(n._id || n.id);
+    }
+    
+    // Navigate based on metadata
+    if (n.onModel === 'Job' && n.relatedId) {
+      navigate(`/job/${n.relatedId}`);
+    } else if (n.onModel === 'Message') {
+      navigate('/shared/messages');
+    } else if (n.onModel === 'Task') {
+      const isClient = user?.role?.toLowerCase() === 'client';
+      navigate(isClient ? '/client/dashboard' : '/freelancer/dashboard');
+    } else if (n.onModel === 'Review') {
+      navigate('/profile');
+    }
+    setIsOpen(false);
+  };
+
   return (
     <div className="relative" ref={panelRef}>
       <button onClick={() => setIsOpen((p) => !p)}
-        className="relative p-2 text-gray-400 hover:text-white transition-colors" aria-label="Notifications">
-        <Bell className="w-6 h-6" />
+        className="p-2.5 bg-accent/40 border border-border hover:bg-accent rounded-xl text-muted-foreground hover:text-foreground transition-all active:scale-95 relative" 
+        aria-label="Notifications"
+      >
+        <Bell className="w-4 h-4" />
         {unreadCount > 0 && (
-          <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-gray-900" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full border border-background animate-pulse" />
         )}
       </button>
 
       {isOpen && (
-        <div className="absolute right-0 mt-2 w-80 bg-gray-800 border border-gray-700 rounded-2xl shadow-2xl overflow-hidden z-50">
-          <div className="p-4 border-b border-gray-700 flex justify-between items-center bg-gray-900/50">
-            <h3 className="font-bold text-white flex items-center gap-2">
+        <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl overflow-hidden z-50">
+          <div className="p-4 border-b border-border flex justify-between items-center bg-accent/20">
+            <h3 className="font-bold text-foreground text-sm flex items-center gap-2">
               Notifications
               {unreadCount > 0 && (
                 <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full">{unreadCount}</span>
               )}
             </h3>
             {unreadCount > 0 && (
-              <button onClick={markAllRead} className="text-xs text-indigo-400 hover:text-indigo-300 flex items-center gap-1">
+              <button onClick={markAllRead} className="text-xs text-primary hover:underline flex items-center gap-1 font-semibold">
                 <CheckCircle className="w-3 h-3" /> Mark all read
               </button>
             )}
@@ -82,24 +108,27 @@ const Notifications = () => {
           <div className="max-h-80 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center items-center p-8">
-                <Loader2 className="w-5 h-5 animate-spin text-gray-500" />
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
               </div>
             ) : notifications.length === 0 ? (
-              <div className="p-8 text-center text-gray-500 text-sm">
-                <Bell className="w-8 h-8 mx-auto mb-2 opacity-30" />
+              <div className="p-8 text-center text-muted-foreground text-xs font-medium">
+                <Bell className="w-7 h-7 mx-auto mb-2 opacity-30 text-muted-foreground" />
                 You're all caught up!
               </div>
             ) : (
-              notifications.map((n) => (
-                <div key={n._id || n.id}
-                  onClick={() => { if (!n.read) markOneRead(n._id || n.id); }}
-                  className={`p-4 border-b border-gray-700/50 cursor-pointer hover:bg-gray-700/50 transition-colors ${!n.read ? 'bg-indigo-500/5' : ''}`}>
-                  <p className={`text-sm ${!n.read ? 'text-white font-medium' : 'text-gray-400'}`}>
-                    {n.message || n.text}
-                  </p>
-                  <p className="text-xs text-gray-500 mt-1">{formatDate(n.createdAt) || n.time || ''}</p>
-                </div>
-              ))
+              notifications.map((n) => {
+                const isUnread = !(n.isRead || n.read);
+                return (
+                  <div key={n._id || n.id}
+                    onClick={() => handleNotificationClick(n)}
+                    className={`p-4 border-b border-border/50 cursor-pointer hover:bg-accent/40 transition-colors ${isUnread ? 'bg-primary/5' : ''}`}>
+                    <p className={`text-xs leading-relaxed ${isUnread ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}>
+                      {n.message || n.text}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground/60 mt-1.5">{formatDate(n.createdAt) || n.time || ''}</p>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
