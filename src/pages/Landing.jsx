@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Target, Zap, ShieldCheck, ArrowRight, Briefcase, Loader2, ArrowUpRight, Users, TrendingUp } from 'lucide-react';
+import { Search, Target, Zap, ShieldCheck, ArrowRight, Briefcase, Loader2, ArrowUpRight, Users, TrendingUp, X, MapPin } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../services/api';
 
 const Landing = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [searchType, setSearchType] = useState('jobs'); // 'jobs' or 'talent'
 
   // Fetch real jobs for the platform stats + featured jobs
   const { data: jobsData, isLoading: jobsLoading } = useQuery({
@@ -53,35 +54,50 @@ const Landing = () => {
           Connect with verified freelancers and high-quality jobs within your custom radius. India's smartest local marketplace.
         </p>
 
-        {/* Search Bar — Job/Freelancer only, no location field */}
-        <form onSubmit={handleSearch} className="max-w-3xl mx-auto bg-card border border-border p-2 rounded-2xl md:rounded-full flex flex-col md:flex-row gap-2 shadow-2xl shadow-primary/10">
-          <div className="flex-1 flex items-center bg-background rounded-xl md:rounded-full px-4 py-3 border border-transparent focus-within:border-primary transition-colors">
-            <Search className="w-5 h-5 text-muted-foreground mr-3 shrink-0" />
+        {/* Premium Unified Borderless Search Console */}
+        <div className="relative max-w-2xl mx-auto mb-8 mt-8 group">
+          {/* Subtle neon background glow */}
+          <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-500 rounded-full opacity-10 blur-lg group-hover:opacity-15 transition-opacity duration-300 pointer-events-none" />
+          
+          <form onSubmit={handleSearch} className="relative flex items-center bg-slate-100 dark:bg-[#0c0c14] p-1.5 pl-4 rounded-full shadow-lg transition-all focus-within:shadow-xl">
+            <Search className="w-5 h-5 text-slate-400 mr-3 shrink-0" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search jobs, skills, or freelancers…"
-              className="bg-transparent text-foreground w-full focus:outline-none placeholder:text-muted-foreground text-sm"
+              placeholder="Search jobs, skills, or freelancers..."
+              className="bg-transparent text-slate-800 dark:text-foreground w-full focus:outline-none placeholder:text-slate-400 dark:placeholder:text-muted-foreground/60 text-sm font-semibold py-3"
             />
-          </div>
-          <button
-            type="submit"
-            className="w-full md:w-auto bg-primary hover:opacity-90 text-primary-foreground font-bold py-3 px-8 rounded-xl md:rounded-full transition-all flex items-center justify-center gap-2 cursor-pointer shadow-lg shadow-primary/20"
-          >
-            Search <ArrowRight className="w-4 h-4" />
-          </button>
-        </form>
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery('')}
+                className="p-1.5 mr-2 rounded-full hover:bg-slate-200 dark:hover:bg-white/5 text-slate-400 dark:text-muted-foreground hover:text-slate-600 dark:hover:text-foreground transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+            
+            <button
+              type="submit"
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-6 rounded-full transition-all flex items-center gap-1.5 cursor-pointer shrink-0 active:scale-98 shadow-md"
+            >
+              <span>Search</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </form>
+        </div>
 
         {/* Quick category pills */}
-        <div className="flex flex-wrap justify-center gap-2 mt-6">
+        <div className="flex flex-wrap justify-center gap-2">
           {CATEGORIES.map((cat) => (
             <button
               key={cat.label}
               onClick={() => navigate(`/discover?category=${cat.label.toLowerCase()}`)}
-              className="px-4 py-2 bg-card border border-border hover:border-primary/50 hover:bg-primary/5 text-sm font-medium text-foreground rounded-full transition-all"
+              className="px-4 py-2 bg-slate-100/70 dark:bg-white/[0.02] border border-slate-200 dark:border-white/5 hover:border-indigo-500/50 hover:bg-indigo-500/5 text-xs font-semibold text-slate-600 dark:text-muted-foreground hover:text-indigo-600 dark:hover:text-white rounded-full transition-all cursor-pointer"
             >
-              {cat.emoji} {cat.label}
+              <span className="mr-1.5">{cat.emoji}</span>
+              <span>{cat.label}</span>
             </button>
           ))}
         </div>

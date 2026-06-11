@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   --background: 0 0% 100%;       /* Pure White */
   --foreground: 240 10% 3.9%;     /* Dark Zinc */

@@ -62,9 +62,16 @@ const ProfileDropdown = () => {
           <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-500 rounded-full ring-2 ring-background"></span>
         </div>
         
-        <span className="hidden sm:block text-xs font-medium text-foreground/90 tracking-wide group-hover:text-foreground transition-colors max-w-[100px] truncate">
-          {user?.name || 'User'}
-        </span>
+        <div className="flex items-center gap-1">
+          <span className="hidden sm:block text-xs font-semibold text-foreground/90 tracking-wide group-hover:text-foreground transition-colors max-w-[100px] truncate">
+            {user?.name || 'User'}
+          </span>
+          {user?.kycVerified ? (
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/10 shrink-0 hidden sm:block" />
+          ) : (
+            <ShieldX className="w-3.5 h-3.5 text-rose-500 shrink-0 hidden sm:block" />
+          )}
+        </div>
         
         <ChevronDown 
           size={14} 
@@ -92,9 +99,16 @@ const ProfileDropdown = () => {
                 <p className="text-sm font-extrabold text-foreground truncate tracking-tight">
                   {user?.name || 'User'}
                 </p>
-                <p className="text-[10px] font-medium text-muted-foreground truncate tracking-wider mt-0.5">
-                  @{user?.username || user?.name?.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'user'}
-                </p>
+                <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                  <p className="text-[10px] font-semibold text-muted-foreground truncate tracking-wider">
+                    @{user?.username || user?.name?.toLowerCase().replace(/[^a-z0-9]/g, '_') || 'user'}
+                  </p>
+                  {user?.kycVerified ? (
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-500 fill-emerald-500/10 shrink-0" />
+                  ) : (
+                    <ShieldX className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                  )}
+                </div>
               </div>
             </div>
             

@@ -31,6 +31,18 @@ import Profile from './pages/freelancer/Profile';
 import Earnings from './pages/freelancer/Earnings';
 import ClientDashboard from './pages/client/Dashboard';
 
+// Admin Portal Pages & Components
+import AdminLayout from './admin/components/AdminLayout';
+import AdminLogin from './admin/pages/AdminLogin';
+import AdminDashboard from './admin/pages/AdminDashboard';
+import AdminUsers from './admin/pages/AdminUsers';
+import AdminTasks from './admin/pages/AdminTasks';
+import AdminPayments from './admin/pages/AdminPayments';
+import AdminAnalytics from './admin/pages/AdminAnalytics';
+import AdminAuditLogs from './admin/pages/AdminAuditLogs';
+import AdminSettings from './admin/pages/AdminSettings';
+import InfoPage from './pages/shared/InfoPage';
+
 
 /* ── Route Guards ─────────────────────────────────── */
 const guestLoader = () => {
@@ -63,6 +75,18 @@ const authLoader = () => {
   return null;
 };
 
+const adminLoader = () => {
+  const { admin } = store.getState().adminAuth;
+  if (!admin) return redirect('/admin/login');
+  return null;
+};
+
+const adminGuestLoader = () => {
+  const { admin } = store.getState().adminAuth;
+  if (admin) return redirect('/admin/dashboard');
+  return null;
+};
+
 /* ── Router ───────────────────────────────────────── */
 const router = createBrowserRouter([
   // Public routes (with Navbar)
@@ -83,6 +107,7 @@ const router = createBrowserRouter([
       { path: 'shared/wallet',   loader: authLoader, element: <Wallet /> },
       { path: 'freelancer/earnings', loader: freelancerLoader, element: <Earnings /> },
       { path: 'client/post-job', loader: clientLoader, element: <PostJob /> },
+      { path: 'info/:slug', element: <InfoPage /> },
     ],
   },
 
@@ -109,6 +134,24 @@ const router = createBrowserRouter([
     loader: freelancerLoader,
     children: [
       { path: 'dashboard', element: <FreelancerDashboard /> },
+    ],
+  },
+
+  // Admin Portal Routes
+  { path: '/admin/login', element: <AdminLogin />, loader: adminGuestLoader },
+  {
+    path: '/admin',
+    element: <AdminLayout />,
+    loader: adminLoader,
+    children: [
+      { index: true, element: <AdminDashboard /> },
+      { path: 'dashboard', element: <AdminDashboard /> },
+      { path: 'users', element: <AdminUsers /> },
+      { path: 'tasks', element: <AdminTasks /> },
+      { path: 'payments', element: <AdminPayments /> },
+      { path: 'analytics', element: <AdminAnalytics /> },
+      { path: 'audit-logs', element: <AdminAuditLogs /> },
+      { path: 'settings', element: <AdminSettings /> },
     ],
   },
 
